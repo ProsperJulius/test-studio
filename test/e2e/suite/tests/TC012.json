@@ -1,0 +1,35 @@
+{
+  "id": "TC012",
+  "title": "Expected failure: a locator that matches two elements",
+  "tags": [
+    "expected-fail",
+    "locators"
+  ],
+  "priority": "P3",
+  "requirement": "",
+  "approval": "Approved",
+  "startUrl": "/locators.html",
+  "steps": [
+    {
+      "id": "s215",
+      "action": "Open page",
+      "target": "locators page",
+      "recordedTarget": "locators page",
+      "value": "/locators.html",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s216",
+      "action": "Click",
+      "target": "Edit",
+      "recordedTarget": "Edit",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByRole('button', { name: 'Edit' })"
+    }
+  ]
+}

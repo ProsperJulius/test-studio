@@ -1,6 +1,12 @@
+const fs = require('fs');
 const path = require('path');
 const { BrowserWindow, ipcMain } = require('electron');
 const { suggestCapture, capturedNames } = require('./capture');
+const { parseLocator } = require('./locator-parse');
+
+const ENGINE_SOURCE = fs.readFileSync(path.join(__dirname, 'locator-engine.js'), 'utf8');
+const PARSE_SOURCE = fs.readFileSync(path.join(__dirname, 'locator-parse.js'), 'utf8');
+let testIdAttribute = 'data-testid';
 
 let win = null;
 let steps = [];
@@ -18,12 +24,38 @@ function makeStep(ev) {
     value: ev.value || '',
     secret: !!ev.secret,
     shot: true,
+    locator: ev.locator || null,
     locators: ev.locators || null,
     grid: ev.grid || null
   };
 }
 
-const sameTarget = (a, b) => JSON.stringify([a.locators, a.grid || null]) === JSON.stringify([b.locators, b.grid || null]);
+const sameTarget = (a, b) => JSON.stringify([a.locator || null, a.locators, a.grid || null]) === JSON.stringify([b.locator || null, b.locators, b.grid || null]);
+
+// The sandboxed recorder preload asks for the locator engine and parser sources.
+ipcMain.on('rec:engine', (event) => {
+  event.returnValue = win && event.sender === win.webContents
+    ? { engine: ENGINE_SOURCE, parse: PARSE_SOURCE, testIdAttribute }
+    : { engine: '', parse: '', testIdAttribute };
+});
+
+// Outlines the elements a locator matches in the recording window and returns how many there are.
+async function highlight(text) {
+  if (!win) throw new Error('Start recording first, then test the locator on the page.');
+  const parsed = parseLocator(text);
+  if (!parsed.ok) return { ok: false, error: parsed.error };
+  const code = '(function () { const module = {};\n' + ENGINE_SOURCE + '\n;const engine = module.exports;' +
+    'const els = engine.resolve(' + JSON.stringify(parsed.ast) + ', { testIdAttribute: ' + JSON.stringify(testIdAttribute) + ' });' +
+    'els.forEach((el) => { const before = el.style.outline; el.style.outline = "3px solid #E8590C"; setTimeout(() => { el.style.outline = before; }, 2000); });' +
+    'if (els[0]) els[0].scrollIntoView({ block: "center" });' +
+    'return { count: els.length, visible: els.filter((el) => engine.isVisible(el)).length }; })()';
+  try {
+    const res = await win.webContents.executeJavaScript(code, true);
+    return { ok: true, ...res };
+  } catch (e) {
+    return { ok: false, error: 'Could not run the locator on this page: ' + e.message };
+  }
+}
 
 ipcMain.on('rec:event', (event, ev) => {
   if (!win || event.sender !== win.webContents) return;
@@ -69,8 +101,9 @@ function addCapture(noticeId) {
   return { steps, name };
 }
 
-function start(url, h) {
+function start(url, h, options) {
   if (win) stop();
+  testIdAttribute = (options && options.testIdAttribute) || 'data-testid';
   handlers = { onNotice: () => {}, ...h };
   notices = [];
   steps = [
@@ -140,4 +173,4 @@ function isRecording() {
   return !!win;
 }
 
-module.exports = { start, stop, undo, checkMode, captureMode, addCapture, isRecording };
+module.exports = { start, stop, undo, checkMode, captureMode, addCapture, highlight, isRecording };

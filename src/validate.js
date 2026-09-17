@@ -1,12 +1,14 @@
 // Checks a suite for problems before it runs.
 const { ACTIONS, metaFor } = require('./describe');
 const { templateToRegex, namesIn, capturedNames } = require('./capture');
+const { parseLocator, locatorQuality } = require('./locator-parse');
 
 const refs = (value) => Array.from(String(value == null ? '' : value).matchAll(/\{(\w+)\}/g), (m) => m[1]);
 
 // Every {name} a step reads: its value (except a capture template) and a grid row value.
 function stepRefs(s) {
   const out = s.action === 'Save value from text' ? [] : refs(s.value);
+  if (s.locator) out.push(...refs(s.locator));
   if (s.grid && s.grid.row && s.grid.row.mode !== 'index') out.push(...refs(s.grid.row.value));
   return out;
 }
@@ -55,8 +57,18 @@ function validateSuite(data, variables, options = {}) {
             add('error', at, 'Say which grid row to use: a column and the value to look for.');
           }
         }
+      } else if (s.locator && String(s.locator).trim() && meta.target && s.action !== 'Open page') {
+        const parsed = parseLocator(s.locator);
+        if (!parsed.ok) add('error', at, 'The locator is not valid: ' + parsed.error);
+        else {
+          const quality = locatorQuality(parsed.ast);
+          if (quality === 'nth') add('warning', at, s.locator + ' depends on the element’s position (.nth, .first or .last). Prefer a role, label or test ID.');
+          else if (quality === 'css-path') add('warning', at, s.locator + ' depends on the page structure. Prefer a role, label or test ID.');
+        }
       } else if (meta.target && !meta.optionalTarget && s.action !== 'Open page' && s.action !== 'Take screenshot' && !String(s.target || '').trim()) {
         add('error', at, 'No field, button or element is named.');
+      } else if (meta.target && s.action !== 'Open page' && s.action !== 'Take screenshot' && !s.grid && String(s.target || '').trim()) {
+        add('info', at, 'Uses an older recorded target. Open the step and click “Convert to locator” to use a Playwright-style locator.');
       }
 
       if (meta.capture) {
@@ -73,7 +85,7 @@ function validateSuite(data, variables, options = {}) {
           add('warning', at, 'Secret {' + key + '} has no value. On a CI server, set the TS_VAR_' + key + ' environment variable.');
         }
       }
-      if (!s.grid && s.locators && !s.locators.testId && !s.locators.id && !s.locators.label && !s.locators.placeholder && !s.locators.name && String(s.target || '') === String(s.recordedTarget || '')) {
+      if (!s.grid && !s.locator && s.locators && !s.locators.testId && !s.locators.id && !s.locators.label && !s.locators.placeholder && !s.locators.name && String(s.target || '') === String(s.recordedTarget || '')) {
         add('warning', at, '“' + (s.target || 'element') + '” can only be found by its position or text. Ask developers for a test ID.');
       }
     });

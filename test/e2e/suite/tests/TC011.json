@@ -1,0 +1,165 @@
+{
+  "id": "TC011",
+  "title": "Locators: Playwright-style locators on forms, tables and dialogs",
+  "tags": [
+    "locators"
+  ],
+  "priority": "P2",
+  "requirement": "",
+  "approval": "Approved",
+  "startUrl": "/locators.html",
+  "steps": [
+    {
+      "id": "s201",
+      "action": "Use block",
+      "target": "",
+      "recordedTarget": "",
+      "value": "b-login",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s202",
+      "action": "Verify element is visible",
+      "target": "Welcome heading",
+      "recordedTarget": "Welcome heading",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByRole('heading', { name: 'Welcome, {user}' })"
+    },
+    {
+      "id": "s203",
+      "action": "Open page",
+      "target": "locators page",
+      "recordedTarget": "locators page",
+      "value": "/locators.html",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s204",
+      "action": "Type",
+      "target": "First name",
+      "recordedTarget": "First name",
+      "value": "Ada",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByLabel('First name')"
+    },
+    {
+      "id": "s205",
+      "action": "Verify field value",
+      "target": "First name",
+      "recordedTarget": "First name",
+      "value": "Ada",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByRole('textbox', { name: 'First name' })"
+    },
+    {
+      "id": "s206",
+      "action": "Click",
+      "target": "Subscribe to offers",
+      "recordedTarget": "Subscribe to offers",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByRole('checkbox', { name: 'Subscribe to offers' })"
+    },
+    {
+      "id": "s207",
+      "action": "Verify field value",
+      "target": "Subscribe to offers",
+      "recordedTarget": "Subscribe to offers",
+      "value": "checked",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByLabel('Subscribe to offers')"
+    },
+    {
+      "id": "s208",
+      "action": "Select",
+      "target": "Country",
+      "recordedTarget": "Country",
+      "value": "Canada",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByRole('combobox', { name: 'Country' })"
+    },
+    {
+      "id": "s209",
+      "action": "Verify element is disabled",
+      "target": "Delete account",
+      "recordedTarget": "Delete account",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByRole('button', { name: 'Delete account' })"
+    },
+    {
+      "id": "s210",
+      "action": "Verify element is enabled",
+      "target": "Save draft",
+      "recordedTarget": "Save draft",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByTestId('save-draft')"
+    },
+    {
+      "id": "s211",
+      "action": "Verify element text",
+      "target": "Order 1002 status",
+      "recordedTarget": "Order 1002 status",
+      "value": "Pending",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByRole('row').filter({ hasText: 'Order 1002' }).getByRole('cell').nth(1)"
+    },
+    {
+      "id": "s212",
+      "action": "Click",
+      "target": "Cancel",
+      "recordedTarget": "Cancel",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByRole('dialog', { name: 'Edit order' }).getByRole('button', { name: 'Cancel' })"
+    },
+    {
+      "id": "s213",
+      "action": "Verify element is hidden",
+      "target": "Hidden button",
+      "recordedTarget": "Hidden button",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByRole('button', { name: 'Hidden button', exact: true, includeHidden: true })"
+    },
+    {
+      "id": "s214",
+      "action": "Verify element text",
+      "target": "Pears remove button",
+      "recordedTarget": "Pears remove button",
+      "value": "Remove",
+      "secret": false,
+      "shot": true,
+      "locators": null,
+      "locator": "getByRole('listitem').filter({ hasText: 'Pears' }).getByRole('button')"
+    }
+  ]
+}

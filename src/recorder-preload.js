@@ -151,13 +151,41 @@ function gridTarget(el) {
   return { grid, part: 'cell', column, row, inner };
 }
 
+// ---------- Playwright-style locators ----------
+// The locator engine and parser are loaded from the main process, because this preload runs sandboxed.
+let locatorTools = null;
+function tools() {
+  if (locatorTools) return locatorTools;
+  const src = ipcRenderer.sendSync('rec:engine');
+  const load = (code) => {
+    const module = { exports: {} };
+    new Function('module', code)(module);
+    return module.exports;
+  };
+  locatorTools = { engine: load(src.engine), parse: load(src.parse), testIdAttribute: src.testIdAttribute };
+  return locatorTools;
+}
+
+// Chooses a unique locator for the element, as Playwright codegen does. Null if that fails.
+function locatorFor(el) {
+  try {
+    const t = tools();
+    const generated = t.engine.generate(el, { testIdAttribute: t.testIdAttribute });
+    return { locator: t.parse.formatLocator(generated.ast), quality: generated.quality, name: t.parse.targetName(generated.ast) };
+  } catch (e) {
+    return null;
+  }
+}
+
 function send(action, el, value, secret) {
-  const d = describe(el);
   const grid = gridTarget(el);
+  const loc = grid ? null : locatorFor(el);
+  const d = loc ? null : describe(el);
   ipcRenderer.send('rec:event', {
     action,
-    name: grid ? grid.column.header || grid.column.colId || d.name : d.name,
-    locators: d.locators,
+    name: grid ? grid.column.header || grid.column.colId : loc ? loc.name : d.name,
+    locator: loc ? loc.locator : null,
+    locators: d ? d.locators : null,
     grid,
     value: value == null ? '' : String(value),
     secret: !!secret

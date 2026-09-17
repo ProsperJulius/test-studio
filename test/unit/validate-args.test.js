@@ -27,10 +27,10 @@ test('validateSuite reports errors and warnings', () => {
 
 test('validateSuite warns once about secrets with no value', () => {
   const data = { blocks: [], tests: [{ id: 'T', steps: [{ action: 'Type', target: 'A', value: '{pw}' }, { action: 'Type', target: 'B', value: '{pw}' }, { action: 'Verify text appears', value: 'ok' }] }] };
-  const p = validateSuite(data, [{ key: 'pw', value: '', secret: true }]);
+  const p = validateSuite(data, [{ key: 'pw', value: '', secret: true }]).filter((x) => x.level !== 'info');
   assert.equal(p.length, 1);
   assert.match(p[0].message, /TS_VAR_pw/);
-  assert.equal(validateSuite(data, [{ key: 'pw', value: 'x', secret: true }]).length, 0);
+  assert.equal(validateSuite(data, [{ key: 'pw', value: 'x', secret: true }]).filter((x) => x.level !== 'info').length, 0);
 });
 
 test('parseArgs handles commands, repeatable and inline options', () => {

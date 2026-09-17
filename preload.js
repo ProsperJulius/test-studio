@@ -3,7 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 const INVOKE = new Set([
   'data:get', 'test:save', 'test:delete', 'block:save', 'block:delete',
   'variables:save', 'settings:save', 'schedule:save',
-  'recorder:start', 'recorder:check', 'recorder:capture', 'recorder:save-notice', 'recorder:undo', 'recorder:stop',
+  'recorder:start', 'recorder:check', 'recorder:capture', 'recorder:save-notice', 'recorder:highlight', 'recorder:undo', 'recorder:stop',
   'environments:save', 'suite:validate', 'suite:export', 'suite:import',
   'run:start', 'run:cancel', 'runs:get', 'runs:image', 'runs:folder', 'runs:html', 'runs:delete', 'report:export'
 ]);

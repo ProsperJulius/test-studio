@@ -26,6 +26,9 @@ jobs:
       - run: npm test
       # Electron needs a display on Linux, so run it under a virtual one.
       - run: xvfb-run --auto-servernum npm run test:e2e
+      # Locator engine matches real Playwright, and the recorder produces unique locators.
+      - run: xvfb-run --auto-servernum npm run test:parity
+      - run: xvfb-run --auto-servernum npm run test:recorder
 
   # Regression run against your application. Export your suite from Settings into ./regression,
   # commit it, and add secrets such as TS_VAR_password in the repository settings.

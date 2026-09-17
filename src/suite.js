@@ -69,7 +69,7 @@ function exportSuite(data, dir) {
   writeJson(path.join(dir, 'suite.json'), {
     format: FORMAT,
     version: 1,
-    settings: { appName: s.appName || '', stepTimeout: s.stepTimeout, retries: s.retries || 0, activeEnvironment: s.activeEnvironment }
+    settings: { appName: s.appName || '', stepTimeout: s.stepTimeout, retries: s.retries || 0, activeEnvironment: s.activeEnvironment, testIdAttribute: s.testIdAttribute || 'data-testid' }
   });
   replaceDir(path.join(dir, 'tests'), (data.tests || []).map((t) => {
     const copy = { ...t, steps: cleanSteps(t.id, t.steps) };

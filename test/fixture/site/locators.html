@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Locators – Shop</title>
+  <style>
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+    .before::before { content: "Before "; }
+    .invisible { visibility: hidden; }
+  </style>
+</head>
+<body>
+  <header><nav aria-label="Main"><a href="/orders.html">Orders</a> <a href="/login.html">Sign out</a> <a>No href</a></nav></header>
+  <main>
+    <h1>Account settings</h1>
+    <h2 id="profile-heading">Profile</h2>
+    <form aria-labelledby="profile-heading">
+      <label for="first">First name *</label>
+      <input id="first" name="first" placeholder="Jane">
+      <label>Last name <input name="last" placeholder="Doe"></label>
+      <input aria-label="Middle name" name="middle">
+      <span id="email-label">Email address</span>
+      <input type="email" aria-labelledby="email-label" placeholder="you@example.com">
+      <input type="password" title="Password" placeholder="Secret">
+      <textarea placeholder="Tell us about yourself"></textarea>
+      <label>Country
+        <select><option>Canada</option><option selected>South Africa</option></select>
+      </label>
+      <label><input type="checkbox" checked> Subscribe to updates</label>
+      <label><input type="checkbox"> Subscribe to offers</label>
+      <input type="radio" name="plan" id="basic"><label for="basic">Basic plan</label>
+      <input type="radio" name="plan" id="pro" checked><label for="pro">Pro plan</label>
+      <fieldset disabled><legend>Billing</legend><input aria-label="Card number"><button type="button">Verify card</button></fieldset>
+      <input type="submit" value="Save profile">
+      <input type="reset">
+      <input type="search" placeholder="Search settings">
+      <input type="number" aria-label="Age">
+      <input type="range" aria-label="Volume">
+      <button type="button" data-testid="save-draft">Save draft</button>
+      <button type="button" data-qa="discard">Discard</button>
+      <button type="button" aria-pressed="true">Bold</button>
+      <button type="button" aria-expanded="false" title="More options">⋯</button>
+      <button type="button" disabled>Delete account</button>
+      <button type="button" aria-disabled="true">Archive</button>
+      <button type="button"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="Settings icon"> Preferences</button>
+      <button type="button" class="before">text</button>
+      <button type="button"><span class="sr-only">Close</span><span aria-hidden="true">×</span></button>
+    </form>
+
+    <section aria-label="Orders">
+      <h3>Recent orders</h3>
+      <table>
+        <caption>Order history</caption>
+        <thead><tr><th>Order</th><th scope="col">Status</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr><td>Order 1001</td><td>Paid</td><td><button type="button">Edit</button></td></tr>
+          <tr><td>Order 1002</td><td>Pending</td><td><button type="button">Edit</button></td></tr>
+          <tr><td>Order 10021</td><td>Shipped</td><td><a href="#o3">View</a></td></tr>
+        </tbody>
+      </table>
+      <ul>
+        <li>Apples <button type="button">Remove</button></li>
+        <li>Pears <button type="button">Remove</button></li>
+      </ul>
+    </section>
+
+    <section><h3>Unnamed section</h3><p>Some <strong>strong</strong> text and <em>emphasis</em>.</p></section>
+
+    <div role="dialog" aria-label="Edit order">
+      <p>Change the order details.</p>
+      <label for="qty">Quantity</label><input id="qty" type="number">
+      <button type="button">Save order</button>
+      <button type="button">Cancel</button>
+    </div>
+    <div role="dialog" aria-labelledby="confirm-title">
+      <h2 id="confirm-title">Confirm delete</h2>
+      <button type="button">Cancel</button>
+      <button type="button">Delete</button>
+    </div>
+
+    <div role="tablist"><div role="tab" aria-selected="true">General</div><div role="tab" aria-selected="false">Security</div></div>
+    <div role="checkbox" aria-checked="mixed" tabindex="0">Select all</div>
+    <div role="switch" aria-checked="true">Dark mode</div>
+    <div role="heading" aria-level="4">Custom heading</div>
+    <div role="button" tabindex="0">Div button</div>
+    <div role="presentation" tabindex="0">Focusable presentation</div>
+
+    <p>Hidden things:</p>
+    <button type="button" style="display:none">Hidden button</button>
+    <button type="button" class="invisible">Invisible button</button>
+    <div aria-hidden="true"><button type="button">Aria hidden button</button></div>
+    <div hidden><a href="/x">Hidden link</a></div>
+    <details><summary>More info</summary><p>Details content</p></details>
+
+    <img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="Company logo">
+    <img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="">
+    <span title="Help text">?</span>
+    <p>Welcome back, <b>Jane</b>!</p>
+    <div>Contact   support
+      team</div>
+    <div><span>Nested</span> <span>text</span></div>
+    <output>3 items</output>
+    <progress value="50" max="100" aria-label="Upload progress"></progress>
+    <a href="#" aria-label="Go to top">↑</a>
+  </main>
+  <footer><p>Footer text</p></footer>
+</body>
+</html>

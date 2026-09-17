@@ -20,7 +20,8 @@ function defaults() {
       buildVersion: '',
       showRunWindow: true,
       stepTimeout: 10,
-      retries: 0
+      retries: 0,
+      testIdAttribute: 'data-testid'
     },
     schedule: {
       enabled: false,

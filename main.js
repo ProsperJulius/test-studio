@@ -234,11 +234,12 @@ function registerIpc() {
       onChange: (steps) => send('recorder:steps', steps),
       onClose: (steps) => send('recorder:closed', steps),
       onNotice: (notices) => send('recorder:notices', notices)
-    });
+    }, { testIdAttribute: store.get().settings.testIdAttribute });
     return true;
   });
   ipcMain.handle('recorder:check', () => recorder.checkMode());
   ipcMain.handle('recorder:capture', () => recorder.captureMode());
+  ipcMain.handle('recorder:highlight', (e, locator) => recorder.highlight(String(locator || '')));
   ipcMain.handle('recorder:save-notice', (e, id) => recorder.addCapture(String(id)));
   ipcMain.handle('recorder:undo', () => recorder.undo());
   ipcMain.handle('recorder:stop', () => recorder.stop());

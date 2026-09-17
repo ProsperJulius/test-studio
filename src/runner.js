@@ -4,6 +4,10 @@ const { BrowserWindow } = require('electron');
 const { describeStep, metaFor } = require('./describe');
 const { substitute, expandSteps, locatorsFor } = require('./steps');
 const captureText = require('./capture');
+const { parseLocator, mapText, formatLocator, locatorQuality } = require('./locator-parse');
+
+// Playwright-style locator engine, evaluated in the page together with the functions that use it.
+const ENGINE_SOURCE = fs.readFileSync(path.join(__dirname, 'locator-engine.js'), 'utf8');
 
 let running = false;
 let cancelled = false;
@@ -11,7 +15,7 @@ let cancelled = false;
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Locators that depend on page layout or wording rather than a stable attribute.
-const FRAGILE_LOCATORS = ['text', 'css'];
+const FRAGILE_LOCATORS = ['text', 'css', 'css-path', 'nth'];
 
 // ---------- Functions injected into the page under test ----------
 // These are serialised with toString(), so they must be self-contained.
@@ -62,22 +66,50 @@ function studioAct(loc, action, value, fieldAction) {
 
   let el = null;
   let used = null;
-  for (const [name, find] of strategies) {
+  let wanted;
+  if (loc.ast) {
+    // Playwright-style locator: strict, so more than one match is an error rather than a guess.
+    /* global __tsLocator */
+    const engine = typeof __tsLocator !== 'undefined' ? __tsLocator : null;
+    if (!engine) return { ok: false, fatal: true, reason: 'The locator engine did not load in the page.' };
+    let found;
     try {
-      const found = find();
-      if (found && (!fieldAction || found.matches(fieldSel) || found.isContentEditable)) {
-        el = found;
-        used = name;
-        break;
-      }
-    } catch (e) { /* try next */ }
-  }
-  const wanted = loc.label || loc.text || loc.placeholder || loc.testId || loc.name || loc.css || 'element';
+      found = engine.resolve(loc.ast, { testIdAttribute: loc.testIdAttribute });
+    } catch (e) {
+      return { ok: false, fatal: true, reason: loc.source + ' is not valid on this page: ' + e.message };
+    }
+    wanted = loc.source;
+    if (found.length > 1) {
+      return { ok: false, fatal: true, reason: loc.source + ' matched ' + found.length + ' elements. Add .first() or .nth(), or make the locator more specific.' };
+    }
+    if (action === 'Verify element is hidden') {
+      return !found.length || !engine.isVisible(found[0]) ? { ok: true, used: 'locator' } : { ok: false, used: 'locator', reason: loc.source + ' is still visible.' };
+    }
+    if (!found.length) return { ok: false, reason: 'Could not find ' + loc.source + ' on the page.' };
+    if (!engine.isVisible(found[0])) return { ok: false, reason: loc.source + ' was found but is not visible.' };
+    if (fieldAction && !(found[0].matches(fieldSel) || found[0].isContentEditable)) {
+      return { ok: false, fatal: true, reason: loc.source + ' is a ' + found[0].nodeName.toLowerCase() + ', not a field that can be typed into or selected.' };
+    }
+    el = found[0];
+    used = 'locator';
+  } else {
+    for (const [name, find] of strategies) {
+      try {
+        const found = find();
+        if (found && (!fieldAction || found.matches(fieldSel) || found.isContentEditable)) {
+          el = found;
+          used = name;
+          break;
+        }
+      } catch (e) { /* try next */ }
+    }
+    wanted = '“' + (loc.label || loc.text || loc.placeholder || loc.testId || loc.name || loc.css || 'element') + '”';
 
-  if (action === 'Verify element is hidden') {
-    return el ? { ok: false, used, reason: '“' + wanted + '” is still visible.' } : { ok: true, used: null };
+    if (action === 'Verify element is hidden') {
+      return el ? { ok: false, used, reason: wanted + ' is still visible.' } : { ok: true, used: null };
+    }
+    if (!el) return { ok: false, reason: 'Could not find ' + wanted + ' on the page.' };
   }
-  if (!el) return { ok: false, reason: 'Could not find “' + wanted + '” on the page.' };
 
   el.scrollIntoView({ block: 'center', inline: 'center' });
   const disabled = !!(el.disabled || el.getAttribute('aria-disabled') === 'true' || el.closest('fieldset[disabled]'));
@@ -114,9 +146,9 @@ function studioAct(loc, action, value, fieldAction) {
       break;
     }
     case 'Select': {
-      if (!(el instanceof HTMLSelectElement)) return { ok: false, fatal: true, reason: '“' + wanted + '” is not a dropdown.' };
+      if (!(el instanceof HTMLSelectElement)) return { ok: false, fatal: true, reason: wanted + ' is not a dropdown.' };
       const opt = Array.from(el.options).find((o) => o.value === value || norm(o.text) === norm(value));
-      if (!opt) return { ok: false, reason: 'Option “' + value + '” is not available in “' + wanted + '”.' };
+      if (!opt) return { ok: false, reason: 'Option “' + value + '” is not available in ' + wanted + '.' };
       Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(el, opt.value);
       el.dispatchEvent(new Event('input', { bubbles: true }));
       el.dispatchEvent(new Event('change', { bubbles: true }));
@@ -128,15 +160,15 @@ function studioAct(loc, action, value, fieldAction) {
     case 'Verify element is visible':
       break;
     case 'Verify element is enabled':
-      if (disabled) return { ok: false, used, reason: '“' + wanted + '” is disabled.' };
+      if (disabled) return { ok: false, used, reason: wanted + ' is disabled.' };
       break;
     case 'Verify element is disabled':
-      if (!disabled) return { ok: false, used, reason: '“' + wanted + '” is enabled.' };
+      if (!disabled) return { ok: false, used, reason: wanted + ' is enabled.' };
       break;
     case 'Verify field value': {
       if (el.type === 'checkbox' || el.type === 'radio') {
         const wantChecked = ['checked', 'true', 'yes', 'on', 'selected', 'ticked'].includes(norm(value).toLowerCase());
-        if (el.checked !== wantChecked) return { ok: false, used, reason: '“' + wanted + '” is ' + (el.checked ? 'checked' : 'unchecked') + '.' };
+        if (el.checked !== wantChecked) return { ok: false, used, reason: wanted + ' is ' + (el.checked ? 'checked' : 'unchecked') + '.' };
         break;
       }
       let actual;
@@ -146,12 +178,12 @@ function studioAct(loc, action, value, fieldAction) {
       } else {
         actual = el.isContentEditable ? el.innerText : el.value;
       }
-      if (norm(actual) !== norm(value)) return { ok: false, used, reason: '“' + wanted + '” is “' + norm(actual) + '”, expected “' + norm(value) + '”.' };
+      if (norm(actual) !== norm(value)) return { ok: false, used, reason: wanted + ' is “' + norm(actual) + '”, expected “' + norm(value) + '”.' };
       break;
     }
     case 'Verify element text': {
       const actual = norm(el.innerText || el.value);
-      if (!actual.includes(norm(value))) return { ok: false, used, reason: '“' + wanted + '” shows “' + actual.slice(0, 200) + '”, expected it to contain “' + norm(value) + '”.' };
+      if (!actual.includes(norm(value))) return { ok: false, used, reason: wanted + ' shows “' + actual.slice(0, 200) + '”, expected it to contain “' + norm(value) + '”.' };
       break;
     }
     default:
@@ -363,8 +395,14 @@ function studioVerify(text) {
 
 // ---------- Helpers ----------
 async function exec(wc, fn, ...args) {
+  const call = '(' + fn.toString() + ')(' + args.map((a) => JSON.stringify(a)).join(',') + ')';
+  // Locator steps need the engine; it is evaluated in a wrapper so it adds nothing to the page's globals.
+  const needsEngine = args.some((a) => a && typeof a === 'object' && a.ast);
+  const code = needsEngine
+    ? '(function () { const module = {};\n' + ENGINE_SOURCE + '\n;const __tsLocator = module.exports;\nreturn ' + call + '; })()'
+    : call;
   try {
-    return await wc.executeJavaScript('(' + fn.toString() + ')(' + args.map((a) => JSON.stringify(a)).join(',') + ')', true);
+    return await wc.executeJavaScript(code, true);
   } catch (e) {
     return { ok: false, reason: 'The page was still loading.' };
   }
@@ -460,12 +498,12 @@ async function executeStep(wc, step, ctx) {
     case 'Verify element is disabled':
     case 'Verify field value':
     case 'Verify element text': {
-      const res = await tryUntil(() => exec(wc, studioAct, locatorsFor(step), step.action, value, !!meta.field), timeout);
+      const res = await tryUntil(() => exec(wc, studioAct, locatorsFor(step, vars, ctx.settings), step.action, value, !!meta.field), timeout);
       if (!res.ok) throw new Error(res.reason || 'The step could not be completed.');
       if (res.mouse) await mouseAt(wc, res.mouse, step.action);
       if (step.action === 'Press Enter') pressEnter(wc);
       if (!meta.verify) await settle(wc, ctx.beforeCapture);
-      return { used: res.used };
+      return { used: res.used, quality: res.used === 'locator' ? locatorsFor(step, vars, ctx.settings).quality : null };
     }
     case 'Save value from text': {
       try {
@@ -475,7 +513,7 @@ async function executeStep(wc, step, ctx) {
       }
       const res = await tryUntil(async () => {
         const r = step.target && String(step.target).trim()
-          ? await exec(wc, studioAct, locatorsFor(step), 'Read text', '', false)
+          ? await exec(wc, studioAct, locatorsFor(step, vars, ctx.settings), 'Read text', '', false)
           : await exec(wc, studioPageText);
         if (!r.ok) return r;
         for (const text of r.texts || [r.text]) {
@@ -539,6 +577,7 @@ function freshSteps(template, blocks, variables) {
     error: null,
     screenshot: null,
     ms: 0,
+    locator: s.locator || null,
     locatedBy: null,
     fragile: false,
     _step: s
@@ -590,6 +629,9 @@ async function runAttempt({ t, ti, attempt, ctx, settings, run, dir, publish }) 
           s.value = resolved.value;
           s.text = (src._prefix || '') + describeStep(resolved, ctx.blocks);
         }
+        if (src.locator && /\{\w+\}/.test(src.locator)) {
+          try { s.locator = locatorsFor(src, stepCtx.vars(), ctx.settings).source; } catch (e) { /* reported when the step runs */ }
+        }
         const next = t.steps[si + 1];
         stepCtx.beforeCapture = !!(next && next.action === 'Save value from text');
         const info = await executeStep(wc, s._step, stepCtx);
@@ -605,7 +647,7 @@ async function runAttempt({ t, ti, attempt, ctx, settings, run, dir, publish }) 
         }
         if (info.used) {
           s.locatedBy = info.used;
-          s.fragile = FRAGILE_LOCATORS.includes(info.used);
+          s.fragile = FRAGILE_LOCATORS.includes(info.used === 'locator' ? info.quality : info.used);
         }
       } catch (e) {
         s.status = 'failed';

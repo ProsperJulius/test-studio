@@ -8,6 +8,8 @@
     "start": "electron .",
     "test": "node --test \"test/unit/*.test.js\"",
     "test:e2e": "node test/e2e/run.js",
+    "test:parity": "node test/e2e/locators-parity.js",
+    "test:recorder": "node test/e2e/recorder-locators.js",
     "fixture": "node test/fixture/server.js",
     "regression": "node bin/test-studio.js",
     "dist:win": "electron-builder --win",
@@ -20,7 +22,8 @@
   "devDependencies": {
     "ag-grid-community": "32.3.3",
     "electron": "^37.0.0",
-    "electron-builder": "^26.0.0"
+    "electron-builder": "^26.0.0",
+    "playwright-core": "1.55.0"
   },
   "build": {
     "appId": "com.yourcompany.teststudio",

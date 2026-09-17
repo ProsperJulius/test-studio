@@ -68,8 +68,14 @@ function cli(args, env = {}) {
     assert.equal(tc010.steps[0].value, '/order.html?id=5001');
     assert.match(tc010.steps[1].text, /Order details for 5001/);
 
+    // Playwright-style locators and strict mode.
+    assert.equal(byId.TC011.status, 'Passed', 'TC011: ' + JSON.stringify(byId.TC011.failure));
+    assert.deepEqual(byId.TC011.fragileSteps, [14], 'the .nth() locator is reported as fragile');
+    assert.equal(byId.TC012.status, 'Failed');
+    assert.match(byId.TC012.failure.error, /getByRole\('button', \{ name: 'Edit' \}\) matched 2 elements/);
+
     const junit = fs.readFileSync(path.join(latest.dir, 'junit.xml'), 'utf8');
-    assert.match(junit, /tests="10" failures="2"/);
+    assert.match(junit, /tests="12" failures="3"/);
     for (const f of ['report.html', 'evidence.docx', 'run.json']) assert.ok(fs.statSync(path.join(latest.dir, f)).size > 0, f);
 
     const shot = byId.TC003.failure.screenshot;

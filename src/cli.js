@@ -64,13 +64,18 @@ async function main(argv, ctx) {
   }
 
   const problems = validateSuite({ ...data, tests }, resolved.variables, { allTests: data.tests });
-  const blocking = problems.filter((p) => p.level === 'error' || args['warnings-as-errors']);
-  if (problems.length) {
-    out('Validation found ' + problems.length + ' problem(s):');
-    printProblems(problems);
+  const blocking = problems.filter((p) => p.level === 'error' || (p.level === 'warning' && args['warnings-as-errors']));
+  const serious = problems.filter((p) => p.level !== 'info');
+  if (serious.length) {
+    out('Validation found ' + serious.length + ' problem(s):');
+    printProblems(serious);
+  }
+  const notes = problems.length - serious.length;
+  if (notes && args.command === 'validate') {
+    out(notes + ' step(s) use older recorded targets. Convert them to Playwright-style locators in the step editor.');
   }
   if (args.command === 'validate') {
-    if (!problems.length) out('No problems found in ' + tests.length + ' test(s).');
+    if (!serious.length) out('No problems found in ' + tests.length + ' test(s).');
     return blocking.length ? 1 : 0;
   }
   if (blocking.length) { err('Fix the errors above before running.'); return 2; }

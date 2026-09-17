@@ -53,7 +53,19 @@
     return (inner ? 'the' + inner + ' ' : '') + '“' + col + '” in ' + gridName + ', ' + row;
   }
 
+  let LocatorParse = null;
+  function locatorName(text) {
+    try {
+      if (!LocatorParse) LocatorParse = typeof module !== 'undefined' && module.exports ? require('./locator-parse') : root.LocatorParse;
+      const parsed = LocatorParse && LocatorParse.parseLocator(text);
+      return parsed && parsed.ok ? LocatorParse.targetName(parsed.ast) : '';
+    } catch (e) {
+      return '';
+    }
+  }
+
   function describeStep(step, blocks) {
+    if (!step.target && step.locator) step = { ...step, target: locatorName(step.locator) };
     const shown = step.secret ? '••••••••' : (step.value || '');
     if (step.grid && metaFor(step.action).grid) {
       const where = describeGridTarget(step.grid);

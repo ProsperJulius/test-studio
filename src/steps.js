@@ -1,4 +1,5 @@
 // Pure helpers for preparing steps before they run. No Electron dependencies.
+const { parseLocator, mapText, formatLocator, locatorQuality } = require('./locator-parse');
 
 function substitute(value, variables) {
   return String(value == null ? '' : value).replace(/\{(\w+)\}/g, (m, key) => {
@@ -34,7 +35,15 @@ function expandSteps(steps, blocks, depth = 0, prefix = '') {
   return out;
 }
 
-function locatorsFor(step) {
+// Returns how the runner finds a step's element: a parsed Playwright-style locator when the step has one
+// (with {name} test data substituted), else the older recorded hints.
+function locatorsFor(step, variables, settings) {
+  if (step.locator && String(step.locator).trim()) {
+    const parsed = parseLocator(step.locator);
+    if (!parsed.ok) throw new Error('The locator for this step is not valid: ' + parsed.error);
+    const ast = mapText(parsed.ast, (text) => substitute(text, variables || []));
+    return { ast, source: formatLocator(ast), quality: locatorQuality(ast), testIdAttribute: (settings && settings.testIdAttribute) || 'data-testid' };
+  }
   const target = (step.target || '').trim();
   if (step.locators && target === (step.recordedTarget || '').trim()) return step.locators;
   // The user renamed the target in the editor: find it by what they typed.

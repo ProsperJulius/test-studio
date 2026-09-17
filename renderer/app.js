@@ -2,6 +2,17 @@
 
 const { describeStep, describeGridTarget, expectedResult, metaFor, ACTIONS } = window.StepText;
 const Capture = window.Capture;
+const LocatorParse = window.LocatorParse;
+
+// Plain-English reading of a locator, or what is wrong with it.
+function locatorNote(text) {
+  if (!String(text || '').trim()) return { ok: true, text: '' };
+  const r = LocatorParse.parseLocator(text);
+  if (!r.ok) return { ok: false, text: r.error };
+  const quality = LocatorParse.locatorQuality(r.ast);
+  const fragile = quality === 'nth' || quality === 'css-path' ? ' · depends on position or page structure' : '';
+  return { ok: true, text: 'Finds the ' + LocatorParse.describeLocator(r.ast) + fragile };
+}
 const api = window.studio;
 
 // ---------- Utilities ----------
@@ -286,8 +297,9 @@ function recordHtml() {
   const steps = r.steps.map((st, i) => `
     <div class="step-item">
       <div class="step-num">${i + 1}</div>
-      <div><div>${esc(describeStep(st, S.data.blocks))}</div></div>
+      <div><div>${esc(describeStep(st, S.data.blocks))}</div>${st.locator ? `<div class="locator-code">${esc(st.locator)}</div>` : ''}</div>
     </div>`).join('');
+  const h = r.highlight || {};
   const notices = (r.notices || []).slice().reverse().map((n) => `
     <div class="notice">
       <div>“${esc(n.text)}”</div>
@@ -313,6 +325,14 @@ function recordHtml() {
         <div class="step-list">${steps}</div>
       </div>
       <div style="display: flex; flex-direction: column; gap: 20px;">
+      <div class="card tips">
+        <h2>Try a locator</h2>
+        <input class="field mono" id="try-locator" value="${esc(h.text || '')}" placeholder="getByRole('button', { name: 'Save' })" aria-label="Locator to find on the page">
+        <div class="actions">
+          <button class="btn btn-sm" data-act="rec-highlight">Find on page</button>
+          ${h.result ? `<span class="${h.result.ok && h.result.count === 1 ? 'txt-pass' : 'txt-warn'}">${esc(h.result.message)}</span>` : ''}
+        </div>
+      </div>
       <div class="card tips">
         <h2>Messages seen</h2>
         ${notices || '<p class="muted">Pop-up messages such as “Order 1234 created” appear here, even if they disappear quickly. Use one to save a value, such as an ID, for later steps.</p>'}
@@ -367,9 +387,17 @@ function editHtml() {
         <button class="link-btn" data-act="grid-toggle" data-id="${esc(st.id)}">${S.gridOpen === st.id ? 'Close' : 'Edit grid target'}</button>
       </div>`;
     } else {
+      const usesLocator = !['Open page', 'Take screenshot'].includes(st.action);
+      const note = locatorNote(st.locator);
       targetField = `<div class="grid-summary">
-        <input class="field" aria-label="Target" data-field="target" data-i="${i}" value="${esc(st.target)}" placeholder="${meta.optionalTarget ? 'Optional: element with the message' : 'Field, button or page name'}">
-        ${meta.grid ? `<button class="link-btn" data-act="grid-use" data-i="${i}">Use a grid cell or header</button>` : ''}
+        <input class="field" aria-label="Target name" data-field="target" data-i="${i}" value="${esc(st.target)}" placeholder="${meta.optionalTarget ? 'Optional: element with the message' : 'Field, button or page name'}">
+        ${usesLocator ? `
+          <input class="field mono locator-field ${note.ok ? '' : 'invalid'}" aria-label="Playwright locator" data-field="locator" data-i="${i}" value="${esc(st.locator || '')}" placeholder="No locator yet, e.g. getByRole('button')" spellcheck="false">
+          <span class="locator-note ${note.ok ? 'muted' : 'txt-fail'}" data-note="${i}">${esc(note.text)}</span>` : ''}
+        <span class="actions" style="gap: 12px;">
+          ${usesLocator && !st.locator && (st.locators || st.target) ? `<button class="link-btn" data-act="locator-convert" data-i="${i}">Convert to locator</button>` : ''}
+          ${meta.grid ? `<button class="link-btn" data-act="grid-use" data-i="${i}">Use a grid cell or header</button>` : ''}
+        </span>
       </div>`;
     }
     let panel = '';
@@ -438,7 +466,8 @@ function editHtml() {
           <button class="btn btn-sm" data-act="save-as-block">Save block</button>` : ''}
       </div>
     </div>
-    <p class="muted">Changes save automatically. Use {variable} in values to pull from Test data. Hidden values are masked in the editor and the evidence document.</p>
+    <p class="muted">Changes save automatically. Use {variable} in values and locators to pull from Test data. Hidden values are masked in the editor and the evidence document.</p>
+    <p class="muted">Each step finds its element with a Playwright-style locator such as <span class="mono">getByRole('button', { name: 'Save' })</span>. Business users can leave the recorded locator as it is; the name above it is only used in descriptions and reports.</p>
   </div>`;
 }
 
@@ -513,6 +542,7 @@ function runHtml() {
           <div class="dot ${s.status}">${symbol}</div>
           <div class="run-body">
             <div class="run-text">${s.num}. ${esc(s.text)}</div>
+            ${s.locator ? `<div class="locator-code">${esc(s.locator)}</div>` : ''}
             <div class="muted">${label}${s.ms ? ` in ${(s.ms / 1000).toFixed(1)}s` : ''}${s.fragile ? ' · <span class="txt-warn" title="Ask developers to add a data-testid to this element">found by its position or text, so it may break when the page changes</span>' : ''}</div>
             ${s.error ? `<div class="run-error">${esc(s.error)}</div>` : ''}
           </div>
@@ -778,6 +808,7 @@ function settingsHtml() {
         <label class="form-row">Build version<input class="field" id="set-buildVersion" value="${esc(s.buildVersion)}" placeholder="Update before each release run"></label>
         <label class="form-row">Step timeout (seconds)<input class="field" type="number" min="1" max="120" id="set-stepTimeout" value="${esc(s.stepTimeout)}"><span class="hint">How long to wait for a field, button or text to appear.</span></label>
         <label class="form-row">Retries for failed tests<input class="field" type="number" min="0" max="5" id="set-retries" value="${esc(s.retries || 0)}"><span class="hint">A test that passes on a retry is marked flaky, not passed cleanly.</span></label>
+        <label class="form-row">Test ID attribute<input class="field mono" id="set-testIdAttribute" value="${esc(s.testIdAttribute || 'data-testid')}" placeholder="data-testid"><span class="hint">Used by getByTestId, like Playwright’s testIdAttribute. Ask developers which attribute your application uses.</span></label>
       </div>
       <label class="check"><input type="checkbox" id="set-showRunWindow" ${s.showRunWindow ? 'checked' : ''}> Show the browser window while tests run</label>
       <div class="actions"><button class="btn btn-primary" data-act="save-settings">Save settings</button></div>
@@ -872,6 +903,25 @@ const actions = {
 
   'rec-check': () => call('recorder:check'),
   'rec-capture': () => call('recorder:capture'),
+  'rec-highlight': async () => {
+    const text = document.getElementById('try-locator').value.trim();
+    const res = await call('recorder:highlight', text);
+    const message = !res.ok ? res.error
+      : res.count === 1 ? (res.visible ? 'Matches 1 element (outlined in the browser).' : 'Matches 1 element, but it is not visible.')
+      : res.count === 0 ? 'No elements match on this page.'
+      : 'Matches ' + res.count + ' elements. Steps need exactly one: add .first() or .nth(), or be more specific.';
+    S.recording.highlight = { text, result: { ok: res.ok, count: res.count, message } };
+    render();
+  },
+  'locator-convert': (el) => {
+    const st = S.editing.obj.steps[+el.dataset.i];
+    const converted = LocatorParse.legacyToLocator(st.locators && st.target === st.recordedTarget ? st.locators : { label: st.target }, S.data.settings.testIdAttribute);
+    if (!converted) { toast('This step has nothing to convert. Type a locator instead.', 'error'); return; }
+    st.locator = converted;
+    markChanged();
+    render();
+    toast(st.locators && st.target === st.recordedTarget ? 'Converted. Run the test to check it still finds the element.' : 'Created a locator from the name. Check it finds the right element.');
+  },
   'rec-save-notice': async (el) => {
     const res = await call('recorder:save-notice', el.dataset.id);
     S.recording.steps = res.steps;
@@ -1054,6 +1104,7 @@ const actions = {
       buildVersion: v('buildVersion'),
       stepTimeout: Math.min(120, Math.max(1, parseInt(v('stepTimeout'), 10) || 10)),
       retries: Math.min(5, Math.max(0, parseInt(v('retries'), 10) || 0)),
+      testIdAttribute: /^[\w-]+$/.test(v('testIdAttribute')) ? v('testIdAttribute') : 'data-testid',
       showRunWindow: document.getElementById('set-showRunWindow').checked
     });
     toast('Settings saved.');
@@ -1084,6 +1135,14 @@ document.addEventListener('change', (e) => {
     if (f === 'priority' || f === 'requirement') { o[f] = el.value.trim(); markChanged(); return; }
     const step = o.steps[+el.dataset.i];
     if (!step) return;
+    if (f === 'locator') {
+      step.locator = el.value.trim() || undefined;
+      const r = step.locator && LocatorParse.parseLocator(step.locator);
+      if (r && r.ok) step.locator = LocatorParse.formatLocator(r.ast);
+      markChanged();
+      render();
+      return;
+    }
     if (f === 'shot' || f === 'secret' || f === 'shareWithRun') step[f] = el.checked;
     else step[f] = el.value;
     if (f === 'action' && step.action === 'Use block') step.value = '';
@@ -1128,6 +1187,14 @@ document.addEventListener('change', (e) => {
 });
 
 document.addEventListener('input', (e) => {
+  // Live check of a locator while it is typed, without re-rendering the editor.
+  if (e.target.dataset && e.target.dataset.field === 'locator') {
+    const note = locatorNote(e.target.value);
+    const span = document.querySelector('[data-note="' + e.target.dataset.i + '"]');
+    e.target.classList.toggle('invalid', !note.ok);
+    if (span) { span.textContent = note.text; span.className = 'locator-note ' + (note.ok ? 'muted' : 'txt-fail'); }
+    return;
+  }
   if (e.target.id !== 'filter-text') return;
   S.filter.text = e.target.value;
   const pos = e.target.selectionStart;

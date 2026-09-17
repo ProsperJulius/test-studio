@@ -51,6 +51,30 @@ npm run dist:linux   # Linux AppImage
 
 Each check waits up to the step timeout for the condition to become true.
 
+## Locators (Playwright style)
+
+Each step finds its element with a **Playwright-style locator**, the same syntax developers use in Playwright tests:
+
+```js
+getByRole('button', { name: 'Save order' })
+getByLabel('Email')
+getByTestId('sign-in')
+getByRole('dialog', { name: 'Edit order' }).getByRole('button', { name: 'Cancel' })
+getByRole('listitem').filter({ hasText: 'Pears' }).getByRole('button')
+```
+
+**Recording** picks a locator the way Playwright codegen does and checks it matches exactly one element: test ID, then role and accessible name, placeholder, label, alt text, text, title, then an element ID. If none is unique, it scopes to a container that is (a dialog, a table row, a list item with some text); as a last resort it adds `.nth()`.
+
+**Business users** can ignore the locator: the step keeps a plain name such as *Save order* for descriptions and reports. **QA engineers** see the locator under the name in the step editor and can edit it. It is checked as you type, with a plain-English reading such as *Finds the “Cancel” button in the “Edit order” dialog*. While recording, **Try a locator** outlines the matching elements in the browser and says how many there are.
+
+**Running** follows Playwright's rules: text and names match case-insensitively as a substring unless `exact: true`; `getByRole` ignores elements hidden from assistive technology unless `includeHidden: true`; and locators are **strict**. A step fails straight away if its locator matches more than one element, telling you to add `.first()`, `.nth()` or be more specific. Test data works inside locators: `getByRole('row', { name: 'Order {orderId}' })`.
+
+Supported: `getByRole` (options `name`, `exact`, `checked`, `disabled`, `expanded`, `includeHidden`, `level`, `pressed`, `selected`), `getByText`, `getByLabel`, `getByPlaceholder`, `getByAltText`, `getByTitle`, `getByTestId`, `locator(css)` and `locator('xpath=…')`, chained calls, `.first()`, `.last()`, `.nth()`, and `.filter({ hasText, hasNotText, visible })`. The test ID attribute (default `data-testid`) is set in **Settings**, like Playwright's `testIdAttribute`.
+
+Tests recorded before locators were added keep working as before. Open a step and click **Convert to locator** to switch it; **Check suite** lists steps that still use older targets.
+
+`npm run test:parity` checks that Test Studio matches exactly the same elements as real Playwright for 125 locators on `test/fixture/site/locators.html`.
+
 ## AG Grid
 
 Clicks, double-clicks and right-clicks on [AG Grid](https://www.ag-grid.com/) cells and headers are recorded by **column and row**, not by position on the page:
@@ -120,6 +144,8 @@ To import changes others made to the suite, use **Import suite from folder…** 
 ```bash
 npm test            # unit tests (Node test runner)
 npm run test:e2e    # runs test/e2e/suite against the fixture app in test/fixture
+npm run test:parity # compares the locator engine with real Playwright (playwright-core, no browser download)
+npm run test:recorder # records clicks and typing and checks the generated locators
 npm run fixture     # starts the fixture app on http://127.0.0.1:4173 for manual recording
 ```
 
@@ -145,6 +171,8 @@ src/select.js           Chooses tests by ID, tag and approval
 src/validate.js         Finds problems in tests before they run
 src/steps.js            Expands blocks, substitutes test data, chooses locators
 src/capture.js          Save value from text: templates, extraction and suggestions
+src/locator-parse.js    Parses, formats and describes Playwright-style locators
+src/locator-engine.js   Finds elements for locators in the page and generates locators when recording
 src/describe.js         Step types and their plain-English sentences
 ```
 
@@ -176,6 +204,7 @@ In the app's user data folder, under `data/`:
 - **Approval** has no user roles in this version; anyone using the app can approve. Using pull request reviews on the exported suite folder gives an auditable approval trail.
 - **AG Grid:** rows are found by scrolling through the grid, so very large grids (thousands of rows) take longer, and server-side row models only work if rows load within about a minute. Grouped rows and master/detail rows are matched by their cell values only. The column menu button is supported but only header text, filter button and cell interactions are covered by automated tests. Canvas-based grids are not supported.
 - **Saved values:** a message shown for less than about half a second can be missed while running.
+- **Locators:** accessible names follow Playwright for common HTML and ARIA but not every edge case of the accname specification; shadow DOM and iframes are not searched. Not supported: `has`/`hasNot` filters, `and`/`or`, `frameLocator`. Actions wait for the element to be visible, not for Playwright's full actionability checks (stable, enabled, receiving events).
 - **Not yet included:** data-driven tests (CSV rows), setup/teardown and API steps, parallel runs, screenshot comparison against a baseline, and trend charts across many runs.
 
 ## Security notes
