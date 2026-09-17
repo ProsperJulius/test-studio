@@ -1,0 +1,33 @@
+{
+  "id": "TC005",
+  "title": "Expected failure: console errors are caught",
+  "tags": [
+    "expected-fail"
+  ],
+  "priority": "P3",
+  "requirement": "",
+  "approval": "Approved",
+  "startUrl": "/login.html",
+  "steps": [
+    {
+      "id": "s32",
+      "action": "Open page",
+      "target": "broken page",
+      "recordedTarget": "broken page",
+      "value": "/console-error.html",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s33",
+      "action": "Verify no console errors",
+      "target": "",
+      "recordedTarget": "",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    }
+  ]
+}

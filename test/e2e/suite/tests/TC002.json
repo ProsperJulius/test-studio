@@ -1,0 +1,74 @@
+{
+  "id": "TC002",
+  "title": "Wrong password shows an error",
+  "tags": [
+    "smoke",
+    "login"
+  ],
+  "priority": "P1",
+  "requirement": "STORY-2",
+  "approval": "Approved",
+  "startUrl": "/login.html",
+  "steps": [
+    {
+      "id": "s21",
+      "action": "Open page",
+      "target": "sign in page",
+      "recordedTarget": "sign in page",
+      "value": "/login.html",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s22",
+      "action": "Type",
+      "target": "Username",
+      "recordedTarget": "Username",
+      "value": "{user}",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s23",
+      "action": "Type",
+      "target": "Password",
+      "recordedTarget": "Password",
+      "value": "wrong",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s24",
+      "action": "Press Enter",
+      "target": "Password",
+      "recordedTarget": "Password",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s25",
+      "action": "Verify text appears",
+      "target": "",
+      "recordedTarget": "",
+      "value": "Invalid username or password",
+      "secret": false,
+      "shot": true,
+      "locators": null
+    },
+    {
+      "id": "s26",
+      "action": "Verify page address contains",
+      "target": "",
+      "recordedTarget": "",
+      "value": "/login.html",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    }
+  ]
+}

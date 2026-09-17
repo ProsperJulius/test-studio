@@ -1,0 +1,10 @@
+{
+  "format": "test-studio-suite",
+  "version": 1,
+  "settings": {
+    "appName": "Fixture Shop",
+    "stepTimeout": 5,
+    "retries": 0,
+    "activeEnvironment": "Local"
+  }
+}

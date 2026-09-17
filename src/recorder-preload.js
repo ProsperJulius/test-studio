@@ -3,7 +3,7 @@
 const { ipcRenderer } = require('electron');
 
 const sentValues = new WeakMap();
-let checkMode = false;
+let checkMode = false;   // false, 'check' or 'capture'
 
 const norm = (t) => (t || '').replace(/\s+/g, ' ').trim();
 
@@ -85,12 +85,80 @@ function describe(el) {
   return { name, locators };
 }
 
+// ---------- AG Grid ----------
+function gridLabel(root) {
+  let node = root;
+  for (let depth = 0; node && node !== document.body && depth < 5; depth++, node = node.parentElement) {
+    const aria = node.getAttribute && node.getAttribute('aria-label');
+    if (norm(aria)) return norm(aria);
+    for (let sib = node.previousElementSibling; sib; sib = sib.previousElementSibling) {
+      const heads = sib.matches('h1,h2,h3,h4,h5,h6,[role=heading]') ? [sib] : Array.from(sib.querySelectorAll('h1,h2,h3,h4,h5,h6,[role=heading]'));
+      const h = heads.reverse().find((x) => norm(x.innerText));
+      if (h) return norm(h.innerText).slice(0, 60);
+    }
+  }
+  return null;
+}
+
+const KEY_HEADER = /\bid\b|number|\bno\b|reference|\bref\b|code|\bkey\b/i;
+
+// Describes a grid cell, header or filter so it can be found again after sorting and scrolling.
+function gridTarget(el) {
+  const root = el.closest('.ag-root-wrapper');
+  if (!root) return null;
+  const grid = { index: Array.from(document.querySelectorAll('.ag-root-wrapper')).indexOf(root), label: gridLabel(root) };
+  const headerById = (colId) => root.querySelector('.ag-header-cell[col-id="' + CSS.escape(colId) + '"]');
+  const headerText = (h) => (h ? norm((h.querySelector('.ag-header-cell-text') || h).innerText) : null);
+  const columnOf = (h) => ({ colId: h ? h.getAttribute('col-id') : null, header: headerText(h) });
+
+  const floating = el.closest('.ag-floating-filter');
+  if (floating) {
+    const h = root.querySelector('.ag-header-cell[aria-colindex="' + floating.getAttribute('aria-colindex') + '"]');
+    return h ? { grid, part: 'floating-filter', column: columnOf(h) } : null;
+  }
+  const header = el.closest('.ag-header-cell');
+  if (header) {
+    if (el.closest('.ag-header-cell-resize, .ag-header-select-all')) return null;
+    const part = el.closest('.ag-header-cell-menu-button') ? 'header-menu' : el.closest('.ag-header-cell-filter-button') ? 'header-filter' : 'header';
+    return { grid, part, column: columnOf(header) };
+  }
+  const cell = el.closest('.ag-cell');
+  const rowEl = cell && cell.closest('.ag-row');
+  if (!cell || !rowEl) return null;
+  const rowIndex = Number(rowEl.getAttribute('row-index'));
+
+  // Choose a key column whose value identifies this row: an ID-like column first, then any other column
+  // whose value is unique among the rows on screen. Pinned and centre parts of the row are both searched.
+  const rowCells = Array.from(root.querySelectorAll('.ag-row[row-index="' + rowIndex + '"] .ag-cell[col-id]')).filter((c) => norm(c.innerText));
+  const candidates = rowCells.filter((c) => KEY_HEADER.test(headerText(headerById(c.getAttribute('col-id'))) || c.getAttribute('col-id')))
+    .concat(rowCells.filter((c) => c !== cell), rowCells);
+  let row = { mode: 'index', index: rowIndex };
+  for (const c of candidates) {
+    const colId = c.getAttribute('col-id');
+    const value = norm(c.innerText);
+    const same = Array.from(root.querySelectorAll('.ag-cell[col-id="' + CSS.escape(colId) + '"]')).filter((x) => norm(x.innerText) === value);
+    if (value.length <= 80 && same.length === 1) {
+      row = { mode: 'match', column: columnOf(headerById(colId)), value, index: rowIndex };
+      if (!row.column.colId) row.column.colId = colId;
+      break;
+    }
+  }
+  const link = el.closest('a');
+  const button = el.closest('button,[role=button]');
+  const inner = link && cell.contains(link) ? 'a' : button && cell.contains(button) ? 'button' : null;
+  const column = columnOf(headerById(cell.getAttribute('col-id')));
+  if (!column.colId) column.colId = cell.getAttribute('col-id');
+  return { grid, part: 'cell', column, row, inner };
+}
+
 function send(action, el, value, secret) {
   const d = describe(el);
+  const grid = gridTarget(el);
   ipcRenderer.send('rec:event', {
     action,
-    name: d.name,
+    name: grid ? grid.column.header || grid.column.colId || d.name : d.name,
     locators: d.locators,
+    grid,
     value: value == null ? '' : String(value),
     secret: !!secret
   });
@@ -116,7 +184,9 @@ function ensureCheckUi() {
   if (!document.getElementById('__studio_banner')) {
     const banner = document.createElement('div');
     banner.id = '__studio_banner';
-    banner.textContent = 'Click the text that must appear for this test to pass. Press Esc to cancel.';
+    banner.textContent = checkMode === 'capture'
+      ? 'Click the text that contains the value to save, such as an order number. Press Esc to cancel.'
+      : 'Click the text that must appear for this test to pass. Press Esc to cancel.';
     document.documentElement.appendChild(banner);
   }
   document.documentElement.classList.add('__studio-check');
@@ -130,9 +200,59 @@ function exitCheck() {
 }
 
 ipcRenderer.on('rec:check-mode', () => {
-  checkMode = true;
+  exitCheck();
+  checkMode = 'check';
   ensureCheckUi();
 });
+
+ipcRenderer.on('rec:capture-mode', () => {
+  exitCheck();
+  checkMode = 'capture';
+  ensureCheckUi();
+});
+
+// ---------- Notifications (toasts) ----------
+// Toasts often disappear before anyone can click them, so report every one that appears.
+const NOTICE = '[role=alert],[role=status],[aria-live]:not([aria-live=off]),[class*=toast],[class*=snackbar],[class*=notification],[class*=Toast],[class*=Snackbar],[class*=Notification]';
+const recentNotices = new Map();
+
+function reportNotices(nodes) {
+  const found = new Set();
+  for (const node of nodes) {
+    const el = node.nodeType === 1 ? node : node.parentElement;
+    if (!el || el.closest('#__studio_banner')) continue;
+    const match = el.closest(NOTICE);
+    if (match) found.add(match);
+    if (el.querySelectorAll) el.querySelectorAll(NOTICE).forEach((x) => found.add(x));
+  }
+  for (const el of found) {
+    // Skip screen-reader-only announcements, including AG Grid's own, which are not visible messages.
+    if (el.closest('.ag-root-wrapper,.ag-aria-description-container,[class^="ag-"]')) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width <= 2 || r.height <= 2) continue;
+    const text = norm(el.innerText || el.textContent).slice(0, 300);
+    const now = Date.now();
+    if (!text || now - (recentNotices.get(text) || 0) < 3000) continue;
+    recentNotices.set(text, now);
+    ipcRenderer.send('rec:notice', { text });
+  }
+}
+
+let pendingNodes = [];
+let noticeTimer = null;
+function watchNotices() {
+  new MutationObserver((mutations) => {
+    for (const m of mutations) {
+      if (m.type === 'characterData') pendingNodes.push(m.target);
+      else m.addedNodes.forEach((n) => pendingNodes.push(n));
+    }
+    clearTimeout(noticeTimer);
+    // Wait briefly so the message text has rendered.
+    noticeTimer = setTimeout(() => { const nodes = pendingNodes; pendingNodes = []; reportNotices(nodes); }, 150);
+  }).observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+}
+if (document.documentElement) watchNotices();
+else window.addEventListener('DOMContentLoaded', watchNotices);
 
 // ---------- Listeners ----------
 document.addEventListener(
@@ -146,10 +266,10 @@ document.addEventListener(
       e.stopImmediatePropagation();
       if (el.id === '__studio_banner') return;
       const text = norm(el.innerText || el.value).slice(0, 200);
+      const mode = checkMode;
       exitCheck();
-      if (text) {
-        ipcRenderer.send('rec:event', { action: 'Verify text appears', name: 'Page', value: text, locators: null });
-      }
+      if (text && mode === 'capture') ipcRenderer.send('rec:notice', { text, save: true });
+      else if (text) ipcRenderer.send('rec:event', { action: 'Verify text appears', name: 'Page', value: text, locators: null });
       return;
     }
 
@@ -162,6 +282,27 @@ document.addEventListener(
       ) || el;
     if (isField(target)) return;
     send('Click', target);
+  },
+  true
+);
+
+// A double-click replaces the two single clicks recorded just before it (see recorder.js).
+document.addEventListener(
+  'dblclick',
+  (e) => {
+    const el = e.target instanceof Element ? e.target : null;
+    if (!el || !e.isTrusted || checkMode || isField(el) || el.isContentEditable) return;
+    send('Double-click', el.closest('button,a,[role=button],[role=link],.ag-cell,.ag-header-cell') || el);
+  },
+  true
+);
+
+document.addEventListener(
+  'contextmenu',
+  (e) => {
+    const el = e.target instanceof Element ? e.target : null;
+    if (!el || !e.isTrusted || checkMode) return;
+    send('Right-click', el.closest('button,a,[role=button],[role=link],.ag-cell,.ag-header-cell') || el);
   },
   true
 );

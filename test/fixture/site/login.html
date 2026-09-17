@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Sign in – Shop</title></head>
+<body>
+  <h1>Sign in</h1>
+  <form id="login">
+    <label for="user">Username</label>
+    <input id="user" name="user" autocomplete="off">
+    <label for="pass">Password</label>
+    <input id="pass" name="pass" type="password">
+    <button type="submit" data-testid="sign-in">Sign in</button>
+  </form>
+  <p id="error" role="alert" hidden>Invalid username or password</p>
+  <script>
+    document.getElementById('login').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const user = document.getElementById('user').value;
+      const ok = document.getElementById('pass').value === 'correct-horse';
+      setTimeout(() => {
+        if (ok) location.href = '/dashboard.html?user=' + encodeURIComponent(user);
+        else document.getElementById('error').hidden = false;
+      }, 400);
+    });
+  </script>
+</body>
+</html>

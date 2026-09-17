@@ -1,0 +1,33 @@
+{
+  "id": "TC010",
+  "title": "Capture: open the order created by TC009",
+  "tags": [
+    "capture"
+  ],
+  "priority": "P2",
+  "requirement": "",
+  "approval": "Approved",
+  "startUrl": "/orders.html",
+  "steps": [
+    {
+      "id": "s126",
+      "action": "Open page",
+      "target": "order details",
+      "recordedTarget": "order details",
+      "value": "/order.html?id={newOrderId}",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s127",
+      "action": "Verify text appears",
+      "target": "",
+      "recordedTarget": "",
+      "value": "Order details for {newOrderId}",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    }
+  ]
+}

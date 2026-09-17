@@ -4,6 +4,7 @@ const {
   Document, Packer, Paragraph, TextRun, HeadingLevel, ImageRun, Table, TableRow, TableCell,
   WidthType, ShadingType, AlignmentType, Footer, PageNumber, BorderStyle
 } = require('docx');
+const { expectedResult } = require('./describe');
 
 const INK = '1A1C20';
 const MUTED = '585C64';
@@ -127,7 +128,7 @@ async function build(run, runDir, outFile) {
       width: { size: 100, type: WidthType.PERCENTAGE },
       rows: [
         new TableRow({ children: [cell('ID', { width: 15, bold: true, fill: 'F4F2EC' }), cell('Test', { width: 65, bold: true, fill: 'F4F2EC' }), cell('Result', { width: 20, bold: true, fill: 'F4F2EC' })] }),
-        ...tests.map((t) => new TableRow({ children: [cell(t.id, { width: 15 }), cell(t.title, { width: 65 }), cell(t.status, { width: 20, bold: true, color: colorFor(t.status) })] }))
+        ...tests.map((t) => new TableRow({ children: [cell(t.id, { width: 15 }), cell(t.title, { width: 65 }), cell(t.status + (t.flaky ? ' (flaky)' : '') + (t.change === 'New failure' ? ' – new' : ''), { width: 20, bold: true, color: colorFor(t.status) })] }))
       ]
     })
   );
@@ -142,7 +143,14 @@ async function build(run, runDir, outFile) {
         children: [new TextRun({ text: t.id + ' ' + t.title, bold: true, color: INK })]
       })
     );
-    children.push(labelled('Result:', t.status, colorFor(t.status)));
+    children.push(labelled('Result:', t.status + (t.flaky ? ' (flaky: passed on attempt ' + t.attempts + ')' : ''), colorFor(t.status)));
+    if (t.change) children.push(labelled('Compared with last run:', t.change));
+    if (t.requirement) children.push(labelled('Requirement:', t.requirement));
+    if (Object.keys(t.captured || {}).length) children.push(labelled('Saved values:', Object.entries(t.captured).map(([k, v]) => k + ' = ' + v).join(', ')));
+    if (t.tags && t.tags.length) children.push(labelled('Tags:', t.tags.join(', ')));
+    for (const a of t.previousAttempts || []) {
+      children.push(para('Attempt ' + a.attempt + ' failed at step ' + a.failedStep + ': ' + (a.error || ''), { color: MUTED }));
+    }
 
     for (const st of t.steps) {
       children.push(
@@ -154,10 +162,7 @@ async function build(run, runDir, outFile) {
         })
       );
       children.push(labelled('Result:', cap(st.status), colorFor(st.status)));
-      const expected = st.action === 'Verify text appears'
-        ? 'Expected: “' + st.value + '” is shown on the page.'
-        : 'Expected: the step completes without error.';
-      children.push(para(expected, { color: MUTED }));
+      children.push(para(expectedResult(st), { color: MUTED }));
       if (st.error) children.push(para('Actual: ' + st.error, { color: FAIL }));
 
       if (st.screenshot) {

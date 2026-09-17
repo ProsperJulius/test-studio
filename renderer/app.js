@@ -1,6 +1,7 @@
 'use strict';
 
-const { describeStep, ACTIONS } = window.StepText;
+const { describeStep, describeGridTarget, expectedResult, metaFor, ACTIONS } = window.StepText;
+const Capture = window.Capture;
 const api = window.studio;
 
 // ---------- Utilities ----------
@@ -33,8 +34,54 @@ const S = {
   viewer: null,
   toast: null,
   saveTimer: null,
-  varsDraft: null
+  varsDraft: null,
+  envDraft: null,
+  filter: { tag: '', text: '' },
+  problems: null,
+  gridOpen: null        // id of the step whose grid target panel is open
 };
+
+function getPath(obj, path) {
+  return path.split('.').reduce((o, k) => (o == null ? undefined : o[k]), obj);
+}
+
+function setPath(obj, path, value) {
+  const keys = path.split('.');
+  let o = obj;
+  for (const k of keys.slice(0, -1)) o = o[k] = o[k] && typeof o[k] === 'object' ? o[k] : {};
+  o[keys[keys.length - 1]] = value;
+}
+
+function newGridTarget(step) {
+  return { grid: { index: 0, label: '' }, part: 'cell', column: { colId: '', header: step.target || '' }, row: { mode: 'match', column: { colId: '', header: '' }, value: '' }, inner: null };
+}
+
+// Explains what a "Save value from text" template will save, or what is wrong with it.
+function capturePreview(template) {
+  if (!String(template || '').trim()) return { ok: false, text: 'Type the message with the part to save in curly brackets, for example: Order {orderId} created' };
+  try {
+    const { names } = Capture.templateToRegex(template);
+    return { ok: true, text: 'Saves ' + names.map((n) => '{' + n + '}').join(', ') + ' for later steps, for example Open page /orders/{' + names[0] + '}' };
+  } catch (e) {
+    return { ok: false, text: e.message };
+  }
+}
+
+function activeEnv() {
+  const envs = S.data.environments || [];
+  return envs.find((e) => e.name === S.data.settings.activeEnvironment) || envs[0] || { name: '', baseUrl: '', variables: [] };
+}
+
+const normTag = (t) => String(t || '').trim().toLowerCase();
+const parseTags = (text) => Array.from(new Set(String(text || '').split(/[,\s]+/).map(normTag).filter(Boolean)));
+const allTags = () => Array.from(new Set(S.data.tests.flatMap((t) => (t.tags || []).map(normTag)))).sort();
+
+function filteredTests() {
+  const text = S.filter.text.trim().toLowerCase();
+  return S.data.tests.filter((t) =>
+    (!S.filter.tag || (t.tags || []).map(normTag).includes(S.filter.tag)) &&
+    (!text || (t.id + ' ' + t.title + ' ' + (t.requirement || '')).toLowerCase().includes(text)));
+}
 
 function toast(message, kind) {
   S.toast = { message, kind };
@@ -84,7 +131,9 @@ function render() {
       <div class="brand">
         <div class="brand-mark">${ICON.logo}</div>
         <div class="brand-name">Test Studio</div>
-        <div class="env-pill">${esc(S.data.settings.environment || 'No environment')} environment</div>
+        <label class="env-pill">Environment
+          <select id="env-switch" aria-label="Active environment">${(S.data.environments || []).map((e) => `<option ${e.name === activeEnv().name ? 'selected' : ''}>${esc(e.name)}</option>`).join('')}</select>
+        </label>
       </div>
       <div class="topbar-right">
         ${S.recording && S.screen !== 'record' ? '<button class="rec-return" data-act="go" data-to="record">Recording in progress</button>' : ''}
@@ -107,10 +156,10 @@ function navHtml() {
   const map = {
     tests: 'tests', setup: 'tests', record: 'tests',
     edit: S.editing && S.editing.kind === 'block' ? 'blocks' : 'tests',
-    run: 'runs', report: 'runs', runs: 'runs', blocks: 'blocks', data: 'data', schedules: 'schedules', settings: 'settings'
+    run: 'runs', report: 'runs', runs: 'runs', blocks: 'blocks', data: 'data', environments: 'environments', schedules: 'schedules', settings: 'settings'
   };
   const active = map[S.screen];
-  const items = [['tests', 'Tests'], ['runs', 'Runs'], ['blocks', 'Reusable blocks'], ['data', 'Test data'], ['schedules', 'Schedules'], ['settings', 'Settings']];
+  const items = [['tests', 'Tests'], ['runs', 'Runs'], ['blocks', 'Reusable blocks'], ['data', 'Test data'], ['environments', 'Environments'], ['schedules', 'Schedules'], ['settings', 'Settings']];
   return items.map(([key, label]) => `<button class="nav ${active === key ? 'active' : ''}" data-act="go" data-to="${key}">${label}</button>`).join('') +
     '<div class="sidebar-foot">Tests, runs and screenshots are stored on this computer.</div>';
 }
@@ -125,6 +174,7 @@ function screenHtml() {
     case 'runs': return runsHtml();
     case 'blocks': return blocksHtml();
     case 'data': return dataHtml();
+    case 'environments': return environmentsHtml();
     case 'schedules': return schedulesHtml();
     case 'settings': return settingsHtml();
     default: return testsHtml();
@@ -133,15 +183,19 @@ function screenHtml() {
 
 // ----- Tests list -----
 function testsHtml() {
-  const tests = S.data.tests;
-  const approved = tests.filter((t) => t.approval === 'Approved').length;
+  const tests = filteredTests();
+  const approved = S.data.tests.filter((t) => t.approval === 'Approved').length;
+  const filtering = S.filter.tag || S.filter.text.trim();
   const rows = tests.map((t) => `
     <div class="tr cols-tests">
       <div class="mono muted">${esc(t.id)}</div>
-      <div><div class="row-title">${esc(t.title)}</div><div class="row-sub">${esc(t.startUrl || '')}</div></div>
+      <div>
+        <div class="row-title">${esc(t.title)}</div>
+        <div class="row-sub">${[t.priority, t.requirement].filter(Boolean).map(esc).join(' · ')}${(t.tags || []).map((tag) => ` <span class="tag">${esc(tag)}</span>`).join('')}</div>
+      </div>
       <div>${(t.steps || []).length}</div>
       <div class="muted">${esc(fmt(t.lastRun))}</div>
-      <div><span class="pill ${statusClass(t.lastStatus)}">${esc(t.lastStatus || 'Draft')}</span></div>
+      <div><span class="pill ${statusClass(t.lastStatus)}">${esc(t.lastStatus || 'Draft')}</span>${t.flaky ? ' <span class="pill flaky" title="Passed only after a retry last time">Flaky</span>' : ''}</div>
       <div class="muted">${esc(t.approval || 'Not submitted')}</div>
       <div class="row-actions">
         <button class="btn btn-sm" data-act="edit-test" data-id="${esc(t.id)}">Edit</button>
@@ -149,6 +203,16 @@ function testsHtml() {
         <button class="icon-btn" aria-label="Delete ${esc(t.title)}" data-act="delete-test" data-id="${esc(t.id)}">${ICON.trash}</button>
       </div>
     </div>`).join('');
+
+  const problems = S.problems;
+  const problemsHtml = problems ? `
+    <div class="card card-pad">
+      <div class="actions" style="justify-content: space-between;">
+        <h2>${problems.length ? `${problems.filter((p) => p.level === 'error').length} error(s), ${problems.filter((p) => p.level === 'warning').length} warning(s)` : 'No problems found'}</h2>
+        <button class="btn btn-sm" data-act="close-problems">Close</button>
+      </div>
+      ${problems.map((p) => `<div class="problem ${p.level}"><strong>${esc(p.where)}</strong> ${esc(p.message)}</div>`).join('')}
+    </div>` : '';
 
   return `
   <div class="page">
@@ -158,14 +222,26 @@ function testsHtml() {
         <p>Record a test by using the application the way you normally would. Each step is captured with a screenshot for the evidence report.</p>
       </div>
       <div class="actions">
+        <button class="btn" data-act="validate">Check suite</button>
         <button class="btn" data-act="run-approved" ${approved ? '' : 'disabled title="Approve at least one test first"'}>${ICON.play} Run approved tests (${approved})</button>
         <button class="btn btn-primary" data-act="new-test">${ICON.rec} Record new test</button>
       </div>
     </div>
-    ${tests.length ? `
+    ${problemsHtml}
+    ${S.data.tests.length ? `
+    <div class="actions filters">
+      <input class="field" id="filter-text" placeholder="Search by ID, name or requirement" value="${esc(S.filter.text)}" style="max-width: 320px;">
+      <select class="field" id="filter-tag" aria-label="Tag" style="max-width: 200px;">
+        <option value="">All tags</option>
+        ${allTags().map((tag) => `<option value="${esc(tag)}" ${tag === S.filter.tag ? 'selected' : ''}>${esc(tag)}</option>`).join('')}
+      </select>
+      ${filtering ? `<span class="muted">${tests.length} of ${S.data.tests.length} tests</span>
+        <button class="btn btn-sm" data-act="run-tests" data-ids="${esc(tests.map((t) => t.id).join(','))}" ${tests.length ? '' : 'disabled'}>${ICON.play} Run these (${tests.length})</button>
+        <button class="btn btn-sm" data-act="clear-filter">Clear</button>` : ''}
+    </div>
     <div class="table">
       <div class="tr th cols-tests"><div>ID</div><div>Test</div><div>Steps</div><div>Last run</div><div>Result</div><div>Review</div><div></div></div>
-      ${rows}
+      ${rows || '<div class="empty">No tests match.</div>'}
     </div>` : `
     <div class="card empty">
       <strong>No tests yet</strong>
@@ -175,7 +251,7 @@ function testsHtml() {
     <div class="explainers">
       <div class="card"><strong>1. Record</strong><p>Click through the app. Every click, entry and selection becomes a plain-English step.</p></div>
       <div class="card"><strong>2. Review and add checks</strong><p>Adjust steps with dropdowns and say what should appear on screen for the test to pass.</p></div>
-      <div class="card"><strong>3. Run and download evidence</strong><p>Run on demand or on a schedule, then download the Word evidence document.</p></div>
+      <div class="card"><strong>3. Run and download evidence</strong><p>Run on demand, on a schedule, or from CI with the command line, then download the evidence.</p></div>
     </div>
   </div>`;
 }
@@ -212,6 +288,11 @@ function recordHtml() {
       <div class="step-num">${i + 1}</div>
       <div><div>${esc(describeStep(st, S.data.blocks))}</div></div>
     </div>`).join('');
+  const notices = (r.notices || []).slice().reverse().map((n) => `
+    <div class="notice">
+      <div>“${esc(n.text)}”</div>
+      <button class="btn btn-sm" data-act="rec-save-notice" data-id="${esc(n.id)}">Save a value from this</button>
+    </div>`).join('');
   return `
   <div class="page">
     <div class="page-head">
@@ -222,6 +303,7 @@ function recordHtml() {
       <div class="actions">
         <button class="btn" data-act="rec-undo" ${r.steps.length ? '' : 'disabled'}>Undo last step</button>
         <button class="btn" data-act="rec-check">${ICON.check} Add check for this page</button>
+        <button class="btn" data-act="rec-capture">Save value from page</button>
         <button class="btn btn-primary" data-act="rec-stop">Stop and review steps</button>
       </div>
     </div>
@@ -230,14 +312,22 @@ function recordHtml() {
         <div class="tr th" style="display: flex; justify-content: space-between;"><span>Captured steps</span><span>${r.steps.length} steps</span></div>
         <div class="step-list">${steps}</div>
       </div>
+      <div style="display: flex; flex-direction: column; gap: 20px;">
+      <div class="card tips">
+        <h2>Messages seen</h2>
+        ${notices || '<p class="muted">Pop-up messages such as “Order 1234 created” appear here, even if they disappear quickly. Use one to save a value, such as an ID, for later steps.</p>'}
+      </div>
       <div class="card tips">
         <h2>Recording in the browser window</h2>
         <ol>
           <li><strong>Use the application as normal.</strong> Clicks, typed values, dropdown choices and Enter key presses are recorded.</li>
           <li><strong>Add checks.</strong> Click “Add check for this page”, then click the text in the browser that proves the step worked, such as a confirmation message.</li>
+          <li><strong>Save values.</strong> When a message shows a new ID, click “Save a value from this”. Then use it in later steps, for example in a page address: /orders/{orderId}.</li>
+          <li><strong>Grids.</strong> Clicks, double-clicks and right-clicks on AG Grid cells and headers are recorded by column and row, so they still work after sorting or scrolling.</li>
           <li><strong>Stop when you're done.</strong> You can edit, reorder and delete steps before running the test.</li>
         </ol>
         <p class="muted">Screenshots are taken each time the test runs, so the evidence always shows the latest build.</p>
+      </div>
       </div>
     </div>
   </div>`;
@@ -254,35 +344,57 @@ function editHtml() {
   const rows = o.steps.map((st, i) => {
     const actionOpts = ACTIONS.filter((a) => isTest || a !== 'Use block')
       .map((a) => `<option value="${a}" ${a === st.action ? 'selected' : ''}>${a}</option>`).join('');
-    const noTarget = ['Verify text appears', 'Wait', 'Use block'].includes(st.action);
+    const meta = metaFor(st.action);
+    const noTarget = !meta.target;
     let valueField;
     if (st.action === 'Use block') {
       valueField = `<select class="field" aria-label="Block" data-field="value" data-i="${i}">
         <option value="">Choose a block</option>
         ${blocks.map((b) => `<option value="${esc(b.id)}" ${b.id === st.value ? 'selected' : ''}>${esc(b.name)}</option>`).join('')}
       </select>`;
-    } else if (['Click', 'Press Enter', 'Take screenshot'].includes(st.action)) {
+    } else if (meta.value === null) {
       valueField = '<span class="muted">Not needed</span>';
     } else {
-      const ph = { 'Open page': 'https://… or /path', Type: 'Value or {variable}', Select: 'Option text', 'Verify text appears': 'Text that must appear', Wait: 'Seconds' }[st.action] || '';
-      valueField = `<input class="field" aria-label="Value" type="${st.secret ? 'password' : 'text'}" data-field="value" data-i="${i}" value="${esc(st.value)}" placeholder="${esc(ph)}">`;
+      const ph = meta.value || '';
+      valueField = `<input class="field" aria-label="${meta.capture ? 'Message with the value in curly brackets' : 'Value'}" type="${st.secret ? 'password' : 'text'}" data-field="value" data-i="${i}" value="${esc(st.value)}" placeholder="${esc(ph)}">`;
+    }
+    const usesGrid = !!(st.grid && meta.grid);
+    let targetField;
+    if (noTarget) targetField = '<span class="muted">Whole page</span>';
+    else if (usesGrid) {
+      targetField = `<div class="grid-summary">
+        <span>${esc(describeGridTarget(st.grid))}</span>
+        <button class="link-btn" data-act="grid-toggle" data-id="${esc(st.id)}">${S.gridOpen === st.id ? 'Close' : 'Edit grid target'}</button>
+      </div>`;
+    } else {
+      targetField = `<div class="grid-summary">
+        <input class="field" aria-label="Target" data-field="target" data-i="${i}" value="${esc(st.target)}" placeholder="${meta.optionalTarget ? 'Optional: element with the message' : 'Field, button or page name'}">
+        ${meta.grid ? `<button class="link-btn" data-act="grid-use" data-i="${i}">Use a grid cell or header</button>` : ''}
+      </div>`;
+    }
+    let panel = '';
+    if (usesGrid && S.gridOpen === st.id) panel = gridPanelHtml(st, i);
+    if (meta.capture) {
+      const pv = capturePreview(st.value);
+      panel = `<div class="tr step-panel"><span class="${pv.ok ? 'muted' : 'txt-warn'}">${esc(pv.text)}</span></div>`;
     }
     return `
     <div class="tr cols-steps">
       <div class="mono muted">${i + 1}</div>
       <select class="field" aria-label="Action" data-field="action" data-i="${i}">${actionOpts}</select>
-      ${noTarget ? '<span class="muted">Whole page</span>' : `<input class="field" aria-label="Target" data-field="target" data-i="${i}" value="${esc(st.target)}" placeholder="Field, button or page name">`}
+      ${targetField}
       ${valueField}
       <div style="display: flex; flex-direction: column; gap: 4px;">
         <label class="check"><input type="checkbox" data-field="shot" data-i="${i}" ${st.shot ? 'checked' : ''}> Screenshot</label>
-        ${st.action === 'Type' ? `<label class="check"><input type="checkbox" data-field="secret" data-i="${i}" ${st.secret ? 'checked' : ''}> Hide value</label>` : ''}
+        ${meta.secretable || meta.capture ? `<label class="check"><input type="checkbox" data-field="secret" data-i="${i}" ${st.secret ? 'checked' : ''}> Hide value</label>` : ''}
+        ${meta.capture ? `<label class="check" title="Later tests in the same run can use this value"><input type="checkbox" data-field="shareWithRun" data-i="${i}" ${st.shareWithRun ? 'checked' : ''}> Share with later tests</label>` : ''}
       </div>
       <div class="row-actions">
         <button class="icon-btn" aria-label="Move step up" data-act="step-move" data-i="${i}" data-d="-1">${ICON.up}</button>
         <button class="icon-btn" aria-label="Move step down" data-act="step-move" data-i="${i}" data-d="1">${ICON.chevDown}</button>
         <button class="icon-btn" aria-label="Delete step" data-act="step-remove" data-i="${i}">${ICON.trash}</button>
       </div>
-    </div>`;
+    </div>${panel}`;
   }).join('');
 
   let reviewBtn = '';
@@ -301,7 +413,12 @@ function editHtml() {
           <span>${isTest ? `<span class="mono">${esc(o.id)}</span> test name` : 'Reusable block name'}</span>
           <input class="field field-lg" data-field="title" value="${esc(isTest ? o.title : o.name)}">
         </label>
-        ${isTest ? `<label class="form-row">Start page address<input class="field" data-field="startUrl" value="${esc(o.startUrl || '')}"></label>` : ''}
+        ${isTest ? `<label class="form-row">Start page address<input class="field" data-field="startUrl" value="${esc(o.startUrl || '')}"></label>
+        <div class="form-grid cols-3">
+          <label class="form-row">Tags<input class="field" data-field="tags" value="${esc((o.tags || []).join(', '))}" placeholder="smoke, checkout"></label>
+          <label class="form-row">Priority<select class="field" data-field="priority">${['P1', 'P2', 'P3'].map((p) => `<option ${p === (o.priority || 'P2') ? 'selected' : ''}>${p}</option>`).join('')}</select></label>
+          <label class="form-row">Requirement or story<input class="field" data-field="requirement" value="${esc(o.requirement || '')}" placeholder="JIRA-123"></label>
+        </div>` : ''}
       </div>
       <div class="actions">
         ${isTest ? `<button class="btn" data-act="record-more">${ICON.rec} Record more</button>` : ''}
@@ -322,6 +439,31 @@ function editHtml() {
       </div>
     </div>
     <p class="muted">Changes save automatically. Use {variable} in values to pull from Test data. Hidden values are masked in the editor and the evidence document.</p>
+  </div>`;
+}
+
+function gridPanelHtml(st, i) {
+  const g = st.grid;
+  const f = (path, label, placeholder, attrs = '') => `<label class="form-row">${label}<input class="field" data-grid="${path}" data-i="${i}" value="${esc(getPath(g, path) == null ? '' : getPath(g, path))}" placeholder="${esc(placeholder)}" ${attrs}></label>`;
+  const sel = (path, label, options) => `<label class="form-row">${label}<select class="field" data-grid="${path}" data-i="${i}">${options.map(([v, t]) => `<option value="${esc(v)}" ${String(getPath(g, path) || '') === v ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>`;
+  const isCell = (g.part || 'cell') === 'cell';
+  const r = g.row || {};
+  return `
+  <div class="tr step-panel">
+    <div class="form-grid cols-3">
+      ${f('grid.label', 'Grid', 'Grid heading or name (blank for the first grid)')}
+      ${sel('part', 'Part', [['cell', 'Cell'], ['header', 'Column header (sorts)'], ['header-menu', 'Column menu button'], ['header-filter', 'Column filter button'], ['floating-filter', 'Filter box under the header']])}
+      ${f('column.header', 'Column', 'Column header text')}
+      ${isCell ? sel('row.mode', 'Find the row', [['match', 'By a value in a column'], ['index', 'By position']]) : ''}
+      ${isCell && r.mode === 'index'
+        ? `<label class="form-row">Row number<input class="field" type="number" min="1" data-grid="row.index" data-i="${i}" value="${(Number(r.index) || 0) + 1}"></label>`
+        : isCell ? f('row.column.header', 'Where column', 'For example Order ID') + f('row.value', 'Is', 'Value or {variable}') : ''}
+      ${isCell ? sel('inner', 'Click on', [['', 'The cell'], ['button', 'A button in the cell'], ['a', 'A link in the cell']]) : ''}
+    </div>
+    <div class="actions">
+      ${isCell ? '<span class="muted">Finding rows by a value keeps the test working when the grid is sorted, filtered or scrolled.</span>' : ''}
+      <button class="btn btn-sm" style="margin-left: auto;" data-act="grid-remove" data-i="${i}">Stop using a grid target</button>
+    </div>
   </div>`;
 }
 
@@ -356,7 +498,12 @@ function runHtml() {
 
   const tests = run.tests.map((t, ti) => `
     <div class="run-test">
-      ${run.tests.length > 1 ? `<div class="run-test-head"><h2><span class="mono">${esc(t.id)}</span> ${esc(t.title)}</h2><span class="pill ${statusClass(t.status)}">${esc(t.status)}</span></div>` : ''}
+      <div class="run-test-head">
+        ${run.tests.length > 1 ? `<h2><span class="mono">${esc(t.id)}</span> ${esc(t.title)}</h2><span class="pill ${statusClass(t.status)}">${esc(t.status)}</span>` : ''}
+        ${t.flaky ? `<span class="pill flaky">Flaky: passed on attempt ${t.attempts}</span>` : t.attempts > 1 ? `<span class="muted">Attempt ${t.attempts}</span>` : ''}
+        ${t.change ? `<span class="pill ${t.change === 'Fixed' ? 'passed' : /fail/i.test(t.change) ? 'failed' : 'neutral'}">${esc(t.change)}</span>` : ''}
+      </div>
+      ${(t.previousAttempts || []).map((a) => `<div class="muted">Attempt ${a.attempt} failed at step ${a.failedStep}: ${esc(a.error)}</div>`).join('')}
       ${t.steps.map((s, si) => {
         const label = { pending: 'Waiting', running: 'Running…', passed: 'Passed', failed: 'Failed', skipped: 'Skipped because an earlier step failed' }[s.status];
         const symbol = { pending: s.num, running: '…', passed: '✓', failed: '✕', skipped: '–' }[s.status];
@@ -366,7 +513,7 @@ function runHtml() {
           <div class="dot ${s.status}">${symbol}</div>
           <div class="run-body">
             <div class="run-text">${s.num}. ${esc(s.text)}</div>
-            <div class="muted">${label}${s.ms ? ` in ${(s.ms / 1000).toFixed(1)}s` : ''}</div>
+            <div class="muted">${label}${s.ms ? ` in ${(s.ms / 1000).toFixed(1)}s` : ''}${s.fragile ? ' · <span class="txt-warn" title="Ask developers to add a data-testid to this element">found by its position or text, so it may break when the page changes</span>' : ''}</div>
             ${s.error ? `<div class="run-error">${esc(s.error)}</div>` : ''}
           </div>
           ${thumb ? `<button class="thumb" data-act="open-image" data-file="${esc(s.screenshot)}" aria-label="Open screenshot for step ${s.num}"><img src="${thumb}" alt=""></button>` : ''}
@@ -386,6 +533,7 @@ function runHtml() {
         ${done ? '' : '<button class="btn btn-danger" data-act="cancel-run">Cancel run</button>'}
         ${done ? `<button class="btn" data-act="run-tests" data-ids="${esc(run.tests.map((t) => t.id).join(','))}">Run again</button>` : ''}
         ${done ? '<button class="btn" data-act="go" data-to="report">Preview evidence</button>' : ''}
+        ${done ? `<button class="btn" data-act="open-html" data-id="${esc(run.id)}">Open HTML report</button>` : ''}
         ${done ? `<button class="btn btn-primary" data-act="export" data-id="${esc(run.id)}">${ICON.down} Download evidence (.docx)</button>` : ''}
       </div>
     </div>
@@ -413,7 +561,7 @@ function reportHtml() {
           <div class="body">
             <strong>Step ${st.num}: ${esc(st.text)}</strong>
             <div><span class="muted">Result: </span><span class="${st.status === 'passed' ? 'txt-pass' : st.status === 'failed' ? 'txt-fail' : 'muted'}">${esc(st.status.charAt(0).toUpperCase() + st.status.slice(1))}</span></div>
-            <div class="muted">${st.action === 'Verify text appears' ? `Expected: “${esc(st.value)}” is shown on the page.` : 'Expected: the step completes without error.'}</div>
+            <div class="muted">${esc(expectedResult(st))}</div>
             ${st.error ? `<div class="txt-fail" style="font-weight: 400;">Actual: ${esc(st.error)}</div>` : ''}
           </div>
           ${S.thumbs[ti + '-' + si] ? `<img src="${S.thumbs[ti + '-' + si]}" alt="Screenshot for step ${st.num}">` : ''}
@@ -470,12 +618,13 @@ function runsHtml() {
     <div class="tr cols-runs">
       <div>${esc(fmt(r.startedAt))}</div>
       <div><div class="row-title">${r.tests.length === 1 ? esc(r.tests[0].id + ' ' + r.tests[0].title) : `${r.tests.length} tests`}</div>
-        ${r.tests.length > 1 ? `<div class="row-sub">${esc(r.tests.map((t) => t.id).join(', '))}</div>` : ''}</div>
+        <div class="row-sub">${[r.environment, r.tests.length > 1 ? r.tests.map((t) => t.id).join(', ') : '', r.tests.filter((t) => t.flaky).length ? r.tests.filter((t) => t.flaky).length + ' flaky' : '', r.tests.filter((t) => t.change === 'New failure').length ? r.tests.filter((t) => t.change === 'New failure').length + ' new failure(s)' : ''].filter(Boolean).map(esc).join(' · ')}</div></div>
       <div><span class="pill ${statusClass(r.status)}">${esc(r.status)}</span></div>
       <div class="muted">${esc(r.trigger)}</div>
       <div class="row-actions">
         <button class="btn btn-sm" data-act="view-run" data-id="${esc(r.id)}">View</button>
         <button class="btn btn-sm" data-act="export" data-id="${esc(r.id)}">Download .docx</button>
+        <button class="btn btn-sm" data-act="open-html" data-id="${esc(r.id)}">HTML</button>
         <button class="btn btn-sm" data-act="open-folder" data-id="${esc(r.id)}">Open folder</button>
         <button class="icon-btn" aria-label="Delete run" data-act="delete-run" data-id="${esc(r.id)}">${ICON.trash}</button>
       </div>
@@ -519,27 +668,63 @@ function blocksHtml() {
 }
 
 // ----- Test data -----
+function varRows(list, attr, owner) {
+  return list.map((v, i) => `
+      <div class="tr cols-vars">
+        <input class="field mono" aria-label="Name" ${attr}="key" data-i="${i}" ${owner} value="${esc(v.key)}" placeholder="name">
+        <input class="field" aria-label="Value" type="${v.secret ? 'password' : 'text'}" ${attr}="value" data-i="${i}" ${owner} value="${esc(v.value)}">
+        <label class="check"><input type="checkbox" ${attr}="secret" data-i="${i}" ${owner} ${v.secret ? 'checked' : ''}> Secret</label>
+        <button class="icon-btn" aria-label="Remove" data-act="${attr === 'data-var' ? 'var-remove' : 'env-var-remove'}" data-i="${i}" ${owner}>${ICON.trash}</button>
+      </div>`).join('');
+}
+
 function dataHtml() {
   if (!S.varsDraft) S.varsDraft = clone(S.data.variables);
   return `
-  <div class="page" style="max-width: 900px;">
+  <div class="page" style="max-width: 960px;">
     <div class="page-head">
-      <div class="intro"><h1>Test data</h1><p>Values you can reuse in any step by typing the name in curly brackets, for example {username}. Change them here when accounts or environments change.</p></div>
+      <div class="intro"><h1>Test data</h1><p>Default values you can reuse in any step by typing the name in curly brackets, for example {username}. Each environment can override them. Values can also be saved while a test runs with a “Save value from text” step, for example an order number from a confirmation message.</p></div>
     </div>
     <div class="table">
-      <div class="tr th cols-vars"><div>Name</div><div>Value</div><div></div></div>
-      ${S.varsDraft.map((v, i) => `
-      <div class="tr cols-vars">
-        <input class="field mono" aria-label="Name" data-var="key" data-i="${i}" value="${esc(v.key)}" placeholder="name">
-        <input class="field" aria-label="Value" data-var="value" data-i="${i}" value="${esc(v.value)}">
-        <button class="icon-btn" aria-label="Remove" data-act="var-remove" data-i="${i}">${ICON.trash}</button>
-      </div>`).join('')}
+      <div class="tr th cols-vars"><div>Name</div><div>Default value</div><div></div><div></div></div>
+      ${varRows(S.varsDraft, 'data-var', '')}
       <div class="table-foot">
         <button class="btn btn-sm" data-act="var-add">+ Add value</button>
         <button class="btn btn-primary btn-sm" style="margin-left: auto;" data-act="var-save">Save test data</button>
       </div>
     </div>
-    <p class="muted">Values are stored in plain text on this computer. Use dedicated test accounts, not personal passwords.</p>
+    <p class="muted">Secret values are encrypted with this computer’s keychain and are never written to exported suites. In CI, supply them as environment variables named TS_VAR_&lt;name&gt;, for example TS_VAR_password.</p>
+  </div>`;
+}
+
+// ----- Environments -----
+function environmentsHtml() {
+  if (!S.envDraft) S.envDraft = clone(S.data.environments);
+  const cards = S.envDraft.map((env, ei) => `
+    <div class="card card-pad">
+      <div class="form-grid">
+        <label class="form-row">Name<input class="field" data-env="name" data-e="${ei}" value="${esc(env.name)}" placeholder="QA, UAT, Staging"></label>
+        <label class="form-row">Base address<input class="field" data-env="baseUrl" data-e="${ei}" value="${esc(env.baseUrl)}" placeholder="https://qa.myapp.company.com"></label>
+      </div>
+      <div class="table">
+        <div class="tr th cols-vars"><div>Test data name</div><div>Value in this environment</div><div></div><div></div></div>
+        ${varRows(env.variables, 'data-env-var', `data-e="${ei}"`) || '<div class="tr muted">Uses the default test data.</div>'}
+        <div class="table-foot">
+          <button class="btn btn-sm" data-act="env-var-add" data-e="${ei}">+ Override a value</button>
+          ${S.envDraft.length > 1 ? `<button class="btn btn-sm btn-danger" style="margin-left: auto;" data-act="env-remove" data-e="${ei}">Remove environment</button>` : ''}
+        </div>
+      </div>
+    </div>`).join('');
+  return `
+  <div class="page" style="max-width: 960px;">
+    <div class="page-head">
+      <div class="intro"><h1>Environments</h1><p>Run the same tests against QA, UAT or Staging. Each environment has its own base address and can override test data such as accounts. Choose the active environment at the top of the window.</p></div>
+      <div class="actions">
+        <button class="btn" data-act="env-add">+ Add environment</button>
+        <button class="btn btn-primary" data-act="env-save">Save environments</button>
+      </div>
+    </div>
+    ${cards}
   </div>`;
 }
 
@@ -549,7 +734,7 @@ function schedulesHtml() {
   const days = [[1, 'Mon'], [2, 'Tue'], [3, 'Wed'], [4, 'Thu'], [5, 'Fri'], [6, 'Sat'], [0, 'Sun']];
   return `
   <div class="page" style="max-width: 760px;">
-    <div class="intro"><h1>Schedules</h1><p class="muted" style="font-size: 15px; line-height: 1.5;">Run the regression suite automatically. Test Studio must be open on this computer at the scheduled time.</p></div>
+    <div class="intro"><h1>Schedules</h1><p class="muted" style="font-size: 15px; line-height: 1.5;">Run the regression suite automatically. Test Studio must be open on this computer; the run starts within an hour of the set time. For unattended runs, use the command line from CI or the operating system scheduler (see README).</p></div>
     <div class="card card-pad">
       <label class="check"><input type="checkbox" id="sch-enabled" ${s.enabled ? 'checked' : ''}> Run tests automatically</label>
       <label class="form-row" style="max-width: 200px;">Time<input class="field" type="time" id="sch-time" value="${esc(s.time)}"></label>
@@ -560,6 +745,19 @@ function schedulesHtml() {
         <select class="field" id="sch-scope">
           <option value="approved" ${s.scope === 'approved' ? 'selected' : ''}>Approved tests only</option>
           <option value="all" ${s.scope === 'all' ? 'selected' : ''}>All tests</option>
+          <option value="tag" ${s.scope === 'tag' ? 'selected' : ''}>Tests with a tag</option>
+        </select>
+      </label>
+      <label class="form-row" style="max-width: 320px;">Tag (when running tests with a tag)
+        <select class="field" id="sch-tag">
+          <option value="">Choose a tag</option>
+          ${allTags().map((tag) => `<option ${tag === s.tag ? 'selected' : ''}>${esc(tag)}</option>`).join('')}
+        </select>
+      </label>
+      <label class="form-row" style="max-width: 320px;">Environment
+        <select class="field" id="sch-env">
+          <option value="">Active environment</option>
+          ${S.data.environments.map((e) => `<option ${e.name === s.environment ? 'selected' : ''}>${esc(e.name)}</option>`).join('')}
         </select>
       </label>
       <div class="muted">${s.lastRunDate ? 'Last scheduled run: ' + esc(s.lastRunDate) : 'No scheduled run yet.'}</div>
@@ -573,17 +771,24 @@ function settingsHtml() {
   const s = S.data.settings;
   return `
   <div class="page" style="max-width: 860px;">
-    <div class="intro"><h1>Settings</h1><p class="muted" style="font-size: 15px;">These details appear on the cover of every evidence document.</p></div>
+    <div class="intro"><h1>Settings</h1><p class="muted" style="font-size: 15px;">These details appear on the cover of every evidence document. Environment and base address are set on the Environments page.</p></div>
     <div class="card card-pad">
       <div class="form-grid">
         <label class="form-row">Application name<input class="field" id="set-appName" value="${esc(s.appName)}"></label>
-        <label class="form-row">Environment<input class="field" id="set-environment" value="${esc(s.environment)}" placeholder="QA, UAT, Staging"></label>
         <label class="form-row">Build version<input class="field" id="set-buildVersion" value="${esc(s.buildVersion)}" placeholder="Update before each release run"></label>
-        <label class="form-row">Base address<input class="field" id="set-baseUrl" value="${esc(s.baseUrl)}" placeholder="https://qa.myapp.company.com"><span class="hint">Used as the default start page and for steps that open a /path.</span></label>
         <label class="form-row">Step timeout (seconds)<input class="field" type="number" min="1" max="120" id="set-stepTimeout" value="${esc(s.stepTimeout)}"><span class="hint">How long to wait for a field, button or text to appear.</span></label>
+        <label class="form-row">Retries for failed tests<input class="field" type="number" min="0" max="5" id="set-retries" value="${esc(s.retries || 0)}"><span class="hint">A test that passes on a retry is marked flaky, not passed cleanly.</span></label>
       </div>
       <label class="check"><input type="checkbox" id="set-showRunWindow" ${s.showRunWindow ? 'checked' : ''}> Show the browser window while tests run</label>
       <div class="actions"><button class="btn btn-primary" data-act="save-settings">Save settings</button></div>
+    </div>
+    <div class="card card-pad">
+      <h2>Share tests and run them in CI</h2>
+      <p class="muted">Export saves every test, block and environment as files in a folder. Keep that folder in version control so changes are reviewed, and run it from CI with <span class="mono">npx test-studio run --suite &lt;folder&gt;</span>. Import brings a suite folder back into Test Studio; tests with the same ID are replaced.</p>
+      <div class="actions">
+        <button class="btn" data-act="suite-export">Export suite to folder…</button>
+        <button class="btn" data-act="suite-import">Import suite from folder…</button>
+      </div>
     </div>
   </div>`;
 }
@@ -632,11 +837,12 @@ function markChanged() {
 const actions = {
   go: (el) => {
     if (el.dataset.to === 'data') S.varsDraft = null;
+    if (el.dataset.to === 'environments') S.envDraft = null;
     go(el.dataset.to);
   },
 
   'new-test': () => {
-    S.setup = { title: '', url: S.data.settings.baseUrl || '' };
+    S.setup = { title: '', url: activeEnv().baseUrl || '' };
     go('setup');
     const t = document.getElementById('setup-title');
     if (t) t.focus();
@@ -646,7 +852,7 @@ const actions = {
     const title = document.getElementById('setup-title').value.trim() || 'Untitled test';
     const url = document.getElementById('setup-url').value.trim();
     S.setup = { title, url };
-    const obj = { id: nextTestId(), title, startUrl: url, steps: [], approval: 'Not submitted', lastStatus: 'Draft', lastRun: null, createdAt: new Date().toISOString() };
+    const obj = { id: nextTestId(), title, startUrl: url, steps: [], tags: [], priority: 'P2', requirement: '', approval: 'Not submitted', lastStatus: 'Draft', lastRun: null, createdAt: new Date().toISOString() };
     try {
       await call('recorder:start', { url });
       S.recording = { obj, mode: 'new', steps: [] };
@@ -658,13 +864,35 @@ const actions = {
     await saveEditing();
     const obj = S.editing.obj;
     try {
-      await call('recorder:start', { url: obj.startUrl || S.data.settings.baseUrl });
+      await call('recorder:start', { url: obj.startUrl || activeEnv().baseUrl });
       S.recording = { obj, mode: 'append', steps: [] };
       go('record');
     } catch (e) { /* toast shown */ }
   },
 
   'rec-check': () => call('recorder:check'),
+  'rec-capture': () => call('recorder:capture'),
+  'rec-save-notice': async (el) => {
+    const res = await call('recorder:save-notice', el.dataset.id);
+    S.recording.steps = res.steps;
+    toast(`Added a step that saves {${res.name}}. Rename it when you review the steps.`);
+    render();
+  },
+  'grid-toggle': (el) => { S.gridOpen = S.gridOpen === el.dataset.id ? null : el.dataset.id; render(); },
+  'grid-use': (el) => {
+    const st = S.editing.obj.steps[+el.dataset.i];
+    st.grid = newGridTarget(st);
+    S.gridOpen = st.id;
+    markChanged();
+    render();
+  },
+  'grid-remove': (el) => {
+    const st = S.editing.obj.steps[+el.dataset.i];
+    delete st.grid;
+    S.gridOpen = null;
+    markChanged();
+    render();
+  },
   'rec-undo': async () => { S.recording.steps = await call('recorder:undo'); render(); },
   'rec-stop': async () => { const steps = await call('recorder:stop'); finishRecording(steps); },
 
@@ -763,7 +991,36 @@ const actions = {
   },
   'close-viewer': () => { S.viewer = null; render(); },
 
-  'var-add': () => { S.varsDraft.push({ key: '', value: '' }); render(); },
+  validate: async () => { S.problems = await call('suite:validate'); render(); },
+  'close-problems': () => { S.problems = null; render(); },
+  'clear-filter': () => { S.filter = { tag: '', text: '' }; render(); },
+  'open-html': (el) => call('runs:html', el.dataset.id),
+
+  'env-add': () => { S.envDraft.push({ name: '', baseUrl: '', variables: [] }); render(); },
+  'env-remove': (el) => { S.envDraft.splice(+el.dataset.e, 1); render(); },
+  'env-var-add': (el) => { S.envDraft[+el.dataset.e].variables.push({ key: '', value: '', secret: false }); render(); },
+  'env-var-remove': (el) => { S.envDraft[+el.dataset.e].variables.splice(+el.dataset.i, 1); render(); },
+  'env-save': async () => {
+    const bad = S.envDraft.flatMap((e) => e.variables).find((v) => v.key && !/^\w+$/.test(v.key));
+    if (bad) { toast(`“${bad.key}” can only use letters, numbers and underscores.`, 'error'); return; }
+    S.data = await call('environments:save', clone(S.envDraft));
+    S.envDraft = clone(S.data.environments);
+    toast('Environments saved.');
+  },
+
+  'suite-export': async () => {
+    const res = await call('suite:export');
+    if (!res) return;
+    toast(res.warnings.length ? `Exported with ${res.warnings.length} warning(s): ${res.warnings[0]}` : 'Suite exported to ' + res.dir, res.warnings.length ? 'error' : undefined);
+  },
+  'suite-import': async () => {
+    const res = await call('suite:import');
+    if (!res) return;
+    S.data = res.data;
+    toast(`Imported ${res.counts.tests} test(s), ${res.counts.blocks} block(s) and ${res.counts.environments} environment(s).`);
+  },
+
+  'var-add': () => { S.varsDraft.push({ key: '', value: '', secret: false }); render(); },
   'var-remove': (el) => { S.varsDraft.splice(+el.dataset.i, 1); render(); },
   'var-save': async () => {
     const bad = S.varsDraft.find((v) => v.key && !/^\w+$/.test(v.key));
@@ -774,12 +1031,18 @@ const actions = {
   },
 
   'save-schedule': async () => {
+    if (document.getElementById('sch-scope').value === 'tag' && !document.getElementById('sch-tag').value) {
+      toast('Choose the tag to run.', 'error');
+      return;
+    }
     const days = Array.from(document.querySelectorAll('.sch-day:checked')).map((c) => +c.value);
     S.data = await call('schedule:save', {
       enabled: document.getElementById('sch-enabled').checked,
       time: document.getElementById('sch-time').value || '07:00',
       days,
-      scope: document.getElementById('sch-scope').value
+      scope: document.getElementById('sch-scope').value,
+      tag: document.getElementById('sch-tag').value,
+      environment: document.getElementById('sch-env').value
     });
     toast('Schedule saved.');
   },
@@ -788,10 +1051,9 @@ const actions = {
     const v = (id) => document.getElementById('set-' + id).value.trim();
     S.data = await call('settings:save', {
       appName: v('appName'),
-      environment: v('environment'),
       buildVersion: v('buildVersion'),
-      baseUrl: v('baseUrl'),
       stepTimeout: Math.min(120, Math.max(1, parseInt(v('stepTimeout'), 10) || 10)),
+      retries: Math.min(5, Math.max(0, parseInt(v('retries'), 10) || 0)),
       showRunWindow: document.getElementById('set-showRunWindow').checked
     });
     toast('Settings saved.');
@@ -818,18 +1080,60 @@ document.addEventListener('change', (e) => {
       return;
     }
     if (f === 'startUrl') { o.startUrl = el.value.trim(); markChanged(); return; }
+    if (f === 'tags') { o.tags = parseTags(el.value); el.value = o.tags.join(', '); markChanged(); return; }
+    if (f === 'priority' || f === 'requirement') { o[f] = el.value.trim(); markChanged(); return; }
     const step = o.steps[+el.dataset.i];
     if (!step) return;
-    if (f === 'shot' || f === 'secret') step[f] = el.checked;
+    if (f === 'shot' || f === 'secret' || f === 'shareWithRun') step[f] = el.checked;
     else step[f] = el.value;
     if (f === 'action' && step.action === 'Use block') step.value = '';
     markChanged();
-    if (f === 'action' || f === 'secret') render();
+    if (f === 'action' || f === 'secret' || (f === 'value' && metaFor(step.action).capture)) render();
+    return;
+  }
+  if (el.dataset.grid && S.editing) {
+    const step = S.editing.obj.steps[+el.dataset.i];
+    if (!step || !step.grid) return;
+    const path = el.dataset.grid;
+    let value = el.value.trim();
+    if (path === 'row.index') value = Math.max(0, (parseInt(value, 10) || 1) - 1);
+    if (path === 'inner') value = value || null;
+    // A column typed by hand is found by its header text, so forget the recorded column ID.
+    if (path === 'column.header' && value !== step.grid.column.header) step.grid.column.colId = '';
+    if (path === 'row.column.header' && step.grid.row && step.grid.row.column && value !== step.grid.row.column.header) step.grid.row.column.colId = '';
+    setPath(step.grid, path, value);
+    if (path === 'column.header') step.target = value;
+    markChanged();
+    if (path === 'part' || path === 'row.mode') render();
     return;
   }
   if (el.dataset.var && S.varsDraft) {
-    S.varsDraft[+el.dataset.i][el.dataset.var] = el.value.trim();
+    const v = S.varsDraft[+el.dataset.i];
+    if (el.dataset.var === 'secret') { v.secret = el.checked; render(); } else v[el.dataset.var] = el.value.trim();
+    return;
   }
+  if (el.dataset.envVar && S.envDraft) {
+    const v = S.envDraft[+el.dataset.e].variables[+el.dataset.i];
+    if (el.dataset.envVar === 'secret') { v.secret = el.checked; render(); } else v[el.dataset.envVar] = el.value.trim();
+    return;
+  }
+  if (el.dataset.env && S.envDraft) {
+    S.envDraft[+el.dataset.e][el.dataset.env] = el.value.trim();
+    return;
+  }
+  if (el.id === 'filter-tag') { S.filter.tag = el.value; render(); return; }
+  if (el.id === 'env-switch') {
+    call('settings:save', { activeEnvironment: el.value }).then((d) => { S.data = d; toast('Now using the ' + el.value + ' environment.'); });
+  }
+});
+
+document.addEventListener('input', (e) => {
+  if (e.target.id !== 'filter-text') return;
+  S.filter.text = e.target.value;
+  const pos = e.target.selectionStart;
+  render();
+  const input = document.getElementById('filter-text');
+  if (input) { input.focus(); input.setSelectionRange(pos, pos); }
 });
 
 document.addEventListener('keydown', (e) => {
@@ -844,6 +1148,12 @@ api.on('recorder:steps', (steps) => {
 });
 
 api.on('recorder:closed', (steps) => finishRecording(steps));
+
+api.on('recorder:notices', (notices) => {
+  if (!S.recording) return;
+  S.recording.notices = notices;
+  if (S.screen === 'record') render();
+});
 
 api.on('run:update', ({ run, thumb }) => {
   if (!S.run || S.run.id !== run.id) S.thumbs = {};

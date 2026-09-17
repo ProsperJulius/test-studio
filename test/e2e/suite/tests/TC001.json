@@ -1,0 +1,178 @@
+{
+  "id": "TC001",
+  "title": "Dashboard checks after sign in",
+  "tags": [
+    "smoke",
+    "dashboard"
+  ],
+  "priority": "P1",
+  "requirement": "STORY-1",
+  "approval": "Approved",
+  "startUrl": "/login.html",
+  "steps": [
+    {
+      "id": "s5",
+      "action": "Use block",
+      "target": "",
+      "recordedTarget": "",
+      "value": "b-login",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s6",
+      "action": "Verify page address contains",
+      "target": "",
+      "recordedTarget": "",
+      "value": "/dashboard.html",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s7",
+      "action": "Verify page title",
+      "target": "",
+      "recordedTarget": "",
+      "value": "Dashboard",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s8",
+      "action": "Verify text appears",
+      "target": "",
+      "recordedTarget": "",
+      "value": "Welcome, alice",
+      "secret": false,
+      "shot": true,
+      "locators": null
+    },
+    {
+      "id": "s9",
+      "action": "Verify element text",
+      "target": "orders",
+      "recordedTarget": "orders",
+      "value": "Order 1001",
+      "secret": false,
+      "shot": false,
+      "locators": {
+        "testId": "orders"
+      }
+    },
+    {
+      "id": "s10",
+      "action": "Verify text is not shown",
+      "target": "",
+      "recordedTarget": "",
+      "value": "Loading orders",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s11",
+      "action": "Verify element is hidden",
+      "target": "Admin panel",
+      "recordedTarget": "Admin panel",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": {
+        "id": "secret-panel"
+      }
+    },
+    {
+      "id": "s12",
+      "action": "Verify element is disabled",
+      "target": "Export",
+      "recordedTarget": "Export",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s13",
+      "action": "Verify element is enabled",
+      "target": "New order",
+      "recordedTarget": "New order",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s14",
+      "action": "Select",
+      "target": "Country",
+      "recordedTarget": "Country",
+      "value": "Canada",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s15",
+      "action": "Verify field value",
+      "target": "Country",
+      "recordedTarget": "Country",
+      "value": "Canada",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s16",
+      "action": "Click",
+      "target": "Subscribe to updates",
+      "recordedTarget": "Subscribe to updates",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s17",
+      "action": "Verify field value",
+      "target": "Subscribe to updates",
+      "recordedTarget": "Subscribe to updates",
+      "value": "checked",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s18",
+      "action": "Type",
+      "target": "Notes",
+      "recordedTarget": "Notes",
+      "value": "Deliver after 5pm",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s19",
+      "action": "Verify field value",
+      "target": "Notes",
+      "recordedTarget": "Notes",
+      "value": "Deliver after 5pm",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s20",
+      "action": "Verify no console errors",
+      "target": "",
+      "recordedTarget": "",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    }
+  ]
+}

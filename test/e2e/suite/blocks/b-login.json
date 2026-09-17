@@ -1,0 +1,49 @@
+{
+  "id": "b-login",
+  "name": "Log in as alice",
+  "steps": [
+    {
+      "id": "s1",
+      "action": "Open page",
+      "target": "sign in page",
+      "recordedTarget": "sign in page",
+      "value": "/login.html",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s2",
+      "action": "Type",
+      "target": "Username",
+      "recordedTarget": "Username",
+      "value": "{user}",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s3",
+      "action": "Type",
+      "target": "Password",
+      "recordedTarget": "Password",
+      "value": "{password}",
+      "secret": true,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s4",
+      "action": "Click",
+      "target": "Sign in",
+      "recordedTarget": "Sign in",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": {
+        "testId": "sign-in",
+        "text": "Sign in"
+      }
+    }
+  ]
+}

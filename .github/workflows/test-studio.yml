@@ -1,0 +1,65 @@
+name: Test Studio
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment profile to run against
+        default: QA
+      tag:
+        description: Only run tests with this tag (blank for all approved tests)
+        default: smoke
+
+jobs:
+  # Tests for Test Studio itself: unit tests, then the runner against the fixture app.
+  self-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      # Electron needs a display on Linux, so run it under a virtual one.
+      - run: xvfb-run --auto-servernum npm run test:e2e
+
+  # Regression run against your application. Export your suite from Settings into ./regression,
+  # commit it, and add secrets such as TS_VAR_password in the repository settings.
+  regression:
+    if: hashFiles('regression/suite.json') != ''
+    needs: self-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Check suite
+        run: xvfb-run --auto-servernum npx test-studio validate --suite regression
+      - name: Run regression tests
+        env:
+          TS_VAR_password: ${{ secrets.TS_VAR_password }}
+          # Pushes run the smoke tests on QA; manual runs use the inputs.
+          ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'QA' }}
+          TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || 'smoke' }}
+        run: |
+          args=(run --suite regression --env "$ENVIRONMENT" --approved-only --retries 1 --build "$GITHUB_SHA" --out test-results --docx)
+          if [ -n "$TAG" ]; then args+=(--tag "$TAG"); fi
+          xvfb-run --auto-servernum npx test-studio "${args[@]}"
+      - name: Publish results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regression-results
+          path: test-results/
+      - name: Test report
+        if: always()
+        uses: mikepenz/action-junit-report@v4
+        with:
+          report_paths: test-results/*/junit.xml

@@ -1,0 +1,64 @@
+{
+  "id": "TC009",
+  "title": "Capture: create an order and share its ID",
+  "tags": [
+    "capture"
+  ],
+  "priority": "P2",
+  "requirement": "",
+  "approval": "Approved",
+  "startUrl": "/orders.html",
+  "steps": [
+    {
+      "id": "s121",
+      "action": "Open page",
+      "target": "orders",
+      "recordedTarget": "orders",
+      "value": "/orders.html",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s122",
+      "action": "Click",
+      "target": "New order",
+      "recordedTarget": "New order",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s123",
+      "action": "Type",
+      "target": "Customer",
+      "recordedTarget": "Customer",
+      "value": "Share Co",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s124",
+      "action": "Click",
+      "target": "Save order",
+      "recordedTarget": "Save order",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s125",
+      "action": "Save value from text",
+      "target": "",
+      "recordedTarget": "",
+      "value": "Order {newOrderId} created",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "shareWithRun": true
+    }
+  ]
+}

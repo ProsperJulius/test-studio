@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Status – Shop</title></head>
+<body>
+  <h1>Status</h1>
+  <p id="status">Checking…</p>
+  <script>
+    fetch('/flaky-status').then((r) => r.json()).then((s) => {
+      document.getElementById('status').textContent = s.ready ? 'Ready' : 'Service unavailable';
+    });
+  </script>
+</body>
+</html>

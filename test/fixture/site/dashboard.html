@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Dashboard – Shop</title></head>
+<body>
+  <h1 id="welcome"></h1>
+  <p id="loading">Loading orders…</p>
+  <table data-testid="orders"><tbody></tbody></table>
+  <div id="secret-panel" style="display:none">Admin only</div>
+  <button id="export" disabled>Export</button>
+  <button id="new-order">New order</button>
+  <form>
+    <label for="country">Country</label>
+    <select id="country"><option value="">Choose</option><option value="ca">Canada</option><option value="za">South Africa</option></select>
+    <label><input type="checkbox" id="subscribe"> Subscribe to updates</label>
+    <label for="notes">Notes</label>
+    <textarea id="notes"></textarea>
+  </form>
+  <script>
+    const user = new URLSearchParams(location.search).get('user') || 'guest';
+    document.getElementById('welcome').textContent = 'Welcome, ' + user;
+    setTimeout(() => {
+      document.getElementById('loading').remove();
+      document.querySelector('[data-testid=orders] tbody').innerHTML = '<tr><td>Order 1001</td><td>Paid</td></tr>';
+    }, 1200);
+  </script>
+</body>
+</html>

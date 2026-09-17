@@ -1,0 +1,35 @@
+{
+  "id": "TC004",
+  "title": "Flaky status page passes on retry",
+  "tags": [
+    "flaky"
+  ],
+  "priority": "P3",
+  "requirement": "",
+  "approval": "Approved",
+  "startUrl": "/login.html",
+  "steps": [
+    {
+      "id": "s30",
+      "action": "Open page",
+      "target": "status",
+      "recordedTarget": "status",
+      "value": "/flaky.html",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s31",
+      "action": "Verify element text",
+      "target": "status",
+      "recordedTarget": "status",
+      "value": "Ready",
+      "secret": false,
+      "shot": false,
+      "locators": {
+        "id": "status"
+      }
+    }
+  ]
+}

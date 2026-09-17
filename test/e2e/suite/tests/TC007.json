@@ -1,0 +1,104 @@
+{
+  "id": "TC007",
+  "title": "Grid: edit from a cell button and capture the ID from the toast",
+  "tags": [
+    "grid",
+    "capture"
+  ],
+  "priority": "P2",
+  "requirement": "",
+  "approval": "Approved",
+  "startUrl": "/orders.html",
+  "steps": [
+    {
+      "id": "s109",
+      "action": "Open page",
+      "target": "orders",
+      "recordedTarget": "orders",
+      "value": "/orders.html",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s110",
+      "action": "Click",
+      "target": "Actions",
+      "recordedTarget": "Actions",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": "Orders"
+        },
+        "part": "cell",
+        "column": {
+          "colId": "actions",
+          "header": "Actions"
+        },
+        "row": {
+          "mode": "match",
+          "column": {
+            "colId": "orderId",
+            "header": "Order ID"
+          },
+          "value": "1003"
+        },
+        "inner": "button"
+      }
+    },
+    {
+      "id": "s111",
+      "action": "Type",
+      "target": "Customer",
+      "recordedTarget": "Customer",
+      "value": "ACME Ltd",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s112",
+      "action": "Click",
+      "target": "Save order",
+      "recordedTarget": "Save order",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s113",
+      "action": "Save value from text",
+      "target": "",
+      "recordedTarget": "",
+      "value": "Order {orderId} updated",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s114",
+      "action": "Open page",
+      "target": "order details",
+      "recordedTarget": "order details",
+      "value": "/order.html?id={orderId}",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s115",
+      "action": "Verify text appears",
+      "target": "",
+      "recordedTarget": "",
+      "value": "Order details for 1003",
+      "secret": false,
+      "shot": true,
+      "locators": null
+    }
+  ]
+}

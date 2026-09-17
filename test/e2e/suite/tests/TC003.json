@@ -1,0 +1,43 @@
+{
+  "id": "TC003",
+  "title": "Expected failure: missing text is reported",
+  "tags": [
+    "expected-fail"
+  ],
+  "priority": "P3",
+  "requirement": "",
+  "approval": "Approved",
+  "startUrl": "/login.html",
+  "steps": [
+    {
+      "id": "s27",
+      "action": "Open page",
+      "target": "dashboard",
+      "recordedTarget": "dashboard",
+      "value": "/dashboard.html",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s28",
+      "action": "Verify text appears",
+      "target": "",
+      "recordedTarget": "",
+      "value": "This text is not on the page",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s29",
+      "action": "Click",
+      "target": "New order",
+      "recordedTarget": "New order",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    }
+  ]
+}
