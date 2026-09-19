@@ -2,13 +2,16 @@ const fs = require('fs');
 const path = require('path');
 const { BrowserWindow, ipcMain } = require('electron');
 const { suggestCapture, capturedNames } = require('./capture');
-const { parseLocator } = require('./locator-parse');
+const { parseLocator, formatLocator } = require('./locator-parse');
+const pw = require('./pw-session');
+const { buildLocator } = require('./pw-locator');
 
 const ENGINE_SOURCE = fs.readFileSync(path.join(__dirname, 'locator-engine.js'), 'utf8');
 const PARSE_SOURCE = fs.readFileSync(path.join(__dirname, 'locator-parse.js'), 'utf8');
 let testIdAttribute = 'data-testid';
 
 let win = null;
+let page = null;
 let steps = [];
 let handlers = { onChange: () => {}, onClose: () => {}, onNotice: () => {} };
 let notices = [];
@@ -57,6 +60,36 @@ async function highlight(text) {
   }
 }
 
+// The recorder generates locators with the in-page engine, but the runner finds elements with
+// Playwright. This checks a new locator against Playwright while the page is still on screen, so a
+// disagreement is caught now rather than when the test is run. Best-effort: a click that navigates
+// immediately may leave nothing to check, and the step is then kept as recorded.
+async function verifyLocator(step) {
+  if (!page || !step.locator) return;
+  const parsed = parseLocator(step.locator);
+  if (!parsed.ok) return;
+
+  let matches;
+  try {
+    matches = await buildLocator(page, parsed.ast).evaluateAll((els) => els.map((e) => e.hasAttribute('data-ts-rec')));
+  } catch (e) {
+    return; // the page moved on before we could look
+  }
+
+  const index = matches.indexOf(true);
+  if (matches.length === 1 && index === 0) {
+    // Playwright agrees: one match, and it is the element that was clicked.
+  } else if (matches.length > 1 && index >= 0) {
+    // Playwright is not strict about this locator, so pin the position it actually matched.
+    step.locator = formatLocator(parsed.ast.concat({ name: 'nth', args: [index] }));
+  } else {
+    step.locatorNote = 'Playwright matched ' + matches.length + ' element(s) for this locator, not the one that was clicked. Check it in the step editor.';
+  }
+
+  await page.evaluate(() => document.querySelectorAll('[data-ts-rec]').forEach((e) => e.removeAttribute('data-ts-rec'))).catch(() => {});
+  if (win) handlers.onChange(steps);
+}
+
 ipcMain.on('rec:event', (event, ev) => {
   if (!win || event.sender !== win.webContents) return;
   if (ev.action === 'Double-click') {
@@ -70,7 +103,9 @@ ipcMain.on('rec:event', (event, ev) => {
   if (sameField) {
     last.value = ev.value;
   } else {
-    steps.push(makeStep(ev));
+    const step = makeStep(ev);
+    steps.push(step);
+    verifyLocator(step);
   }
   handlers.onChange(steps);
 });
@@ -136,8 +171,24 @@ function start(url, h, options) {
     handlers.onClose(steps);
   });
 
-  win.loadURL(url).catch(() => { /* navigation errors are shown in the window */ });
+  attach(url);
   handlers.onChange(steps);
+}
+
+// Attaches Playwright to the recording window before the page under test is loaded. Recording
+// still works if this fails; locators are then kept exactly as the engine generated them.
+async function attach(url) {
+  const target = win;
+  page = null;
+  target.loadURL(url).catch(() => { /* navigation errors are shown in the window */ });
+  try {
+    await pw.connect();
+    pw.setTestIdAttribute(testIdAttribute);
+    if (win !== target) return;
+    page = await pw.pageForWebContents(target.webContents);
+  } catch (e) {
+    page = null;
+  }
 }
 
 function checkMode() {
@@ -160,6 +211,7 @@ function undo() {
 
 function stop() {
   const recorded = steps;
+  page = null;
   if (win) {
     const w = win;
     win = null;

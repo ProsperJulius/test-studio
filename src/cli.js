@@ -58,7 +58,7 @@ async function main(argv, ctx) {
   const tests = selectTests(data.tests, { ids: args.test, tags: args.tag, excludeTags: args['exclude-tag'], approvedOnly: args['approved-only'] });
 
   if (args.command === 'list') {
-    for (const t of tests) out(t.id.padEnd(8) + ' ' + (t.priority || '').padEnd(3) + ' ' + t.title + (t.tags.length ? '  [' + t.tags.join(', ') + ']' : ''));
+    for (const t of tests) out(t.id.padEnd(8) + ' ' + (t.priority || '').padEnd(3) + ' ' + t.title + (t.tags.length ? '  [' + t.tags.join(', ') + ']' : '') + (t.disabled ? ' (disabled)' : ''));
     out(tests.length + ' test(s)');
     return 0;
   }

@@ -36,6 +36,14 @@ function defaults() {
   };
 }
 
+// Fills in test fields added after the first version.
+function migrateTest(t) {
+  if (!Array.isArray(t.tags)) t.tags = [];
+  if (!t.priority) t.priority = 'P2';
+  if (t.requirement == null) t.requirement = '';
+  return t;
+}
+
 // Brings data saved by older versions up to the current shape.
 function migrate(d) {
   const settings = d.settings || {};
@@ -47,11 +55,7 @@ function migrate(d) {
   delete settings.environment;
   delete settings.baseUrl;
   if (!d.environments.some((e) => e.name === settings.activeEnvironment)) settings.activeEnvironment = d.environments[0].name;
-  for (const t of d.tests || []) {
-    if (!Array.isArray(t.tags)) t.tags = [];
-    if (!t.priority) t.priority = 'P2';
-    if (t.requirement == null) t.requirement = '';
-  }
+  (d.tests || []).forEach(migrateTest);
   d.schema = SCHEMA;
   return d;
 }
@@ -106,4 +110,4 @@ function update(fn) {
   return data;
 }
 
-module.exports = { init, get, update, migrate, defaults };
+module.exports = { init, get, update, migrate, migrateTest, defaults };

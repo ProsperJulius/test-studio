@@ -9,7 +9,9 @@
     "test": "node --test \"test/unit/*.test.js\"",
     "test:e2e": "node test/e2e/run.js",
     "test:parity": "node test/e2e/locators-parity.js",
+    "test:pw-parity": "node test/e2e/pw-locator-parity.js",
     "test:recorder": "node test/e2e/recorder-locators.js",
+    "test:live-aggrid": "node test/e2e/live-ag-grid.js",
     "fixture": "node test/fixture/server.js",
     "regression": "node bin/test-studio.js",
     "dist:win": "electron-builder --win",
@@ -17,13 +19,15 @@
     "dist:linux": "electron-builder --linux"
   },
   "dependencies": {
-    "docx": "^9.5.0"
+    "docx": "^9.5.0",
+    "js-yaml": "^4.1.0",
+    "playwright-core": "1.55.0"
   },
   "devDependencies": {
     "ag-grid-community": "32.3.3",
+    "ag-grid-community-36": "npm:ag-grid-community@^36.2.0",
     "electron": "^37.0.0",
-    "electron-builder": "^26.0.0",
-    "playwright-core": "1.55.0"
+    "electron-builder": "^26.0.0"
   },
   "build": {
     "appId": "com.yourcompany.teststudio",

@@ -1,0 +1,95 @@
+format: test-studio-tests
+version: 1
+exportedAt: '2026-09-19T01:58:06.351Z'
+tests:
+  - id: TC-AGTREE
+    title: 'AG Grid tree: click Created for Proposal.docx'
+    tags:
+      - grid
+      - tree
+    priority: P2
+    requirement: ''
+    approval: Not submitted
+    startUrl: https://www.ag-grid.com/examples/tree-data/kitchen-sink/typescript/example-runner/
+    steps:
+      - id: sag1
+        action: Open page
+        target: AG Grid example
+        recordedTarget: AG Grid example
+        value: https://www.ag-grid.com/examples/tree-data/kitchen-sink/typescript/example-runner/
+        secret: false
+        shot: false
+        locators: null
+      - id: sag2
+        action: Verify element is visible
+        target: Created
+        recordedTarget: Created
+        value: ''
+        secret: false
+        shot: false
+        locators: null
+        grid:
+          grid:
+            index: 0
+            label: ''
+          part: cell
+          column:
+            colId: created
+            header: Created
+          row:
+            mode: match
+            match: equals
+            column:
+              colId: ag-Grid-AutoColumn
+              header: File Explorer
+            value: Proposal.docx
+          inner: null
+      - id: sag3
+        action: Click
+        target: Created
+        recordedTarget: Created
+        value: ''
+        secret: false
+        shot: true
+        locators: null
+        grid:
+          grid:
+            index: 0
+            label: ''
+          part: cell
+          column:
+            colId: created
+            header: Created
+          row:
+            mode: match
+            match: equals
+            column:
+              colId: ag-Grid-AutoColumn
+              header: File Explorer
+            value: Proposal.docx
+          inner: null
+      - id: sag4
+        action: Verify element text
+        target: Created
+        recordedTarget: Created
+        value: '2023-07-10'
+        secret: false
+        shot: true
+        locators: null
+        grid:
+          grid:
+            index: 0
+            label: ''
+          part: cell
+          column:
+            colId: created
+            header: Created
+          row:
+            mode: match
+            match: equals
+            column:
+              colId: ag-Grid-AutoColumn
+              header: File Explorer
+            value: Proposal.docx
+          inner: null
+blocks: []

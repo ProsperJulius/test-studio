@@ -48,6 +48,29 @@ function replaceDir(dir, items, nameOf) {
   }
 }
 
+// Blanks hidden step values that are not a {variable}, since secrets are never written to files.
+function cleanSteps(owner, steps, warnings) {
+  return (steps || []).map((s, i) => {
+    if (s.secret && s.value && !/^\{\w+\}$/.test(String(s.value).trim())) {
+      warnings.push(owner + ' step ' + (i + 1) + ' has a hidden value that was not exported. Use a {variable} from Test data instead.');
+      return { ...s, value: '' };
+    }
+    return s;
+  });
+}
+
+// Adds items to a list, replacing any with the same key but keeping a test's last run and result.
+function upsert(list, items, key) {
+  for (const item of items) {
+    const i = list.findIndex((x) => x[key] === item[key]);
+    if (i >= 0) {
+      const keepRuntime = {};
+      RUNTIME_TEST_FIELDS.forEach((k) => { if (list[i][k] !== undefined) keepRuntime[k] = list[i][k]; });
+      list[i] = { ...item, ...keepRuntime };
+    } else list.push(item);
+  }
+}
+
 // Returns a list of warnings (for example, hidden step values that were left out).
 function exportSuite(data, dir) {
   const manifestFile = path.join(dir, 'suite.json');
@@ -57,13 +80,6 @@ function exportSuite(data, dir) {
   }
   const warnings = [];
   const blankVars = (list) => (list || []).map((v) => (v.secret ? { ...v, value: '' } : v));
-  const cleanSteps = (owner, steps) => (steps || []).map((s, i) => {
-    if (s.secret && s.value && !/^\{\w+\}$/.test(String(s.value).trim())) {
-      warnings.push(owner + ' step ' + (i + 1) + ' has a hidden value that was not exported. Use a {variable} from Test data instead.');
-      return { ...s, value: '' };
-    }
-    return s;
-  });
 
   const s = data.settings || {};
   writeJson(path.join(dir, 'suite.json'), {
@@ -72,11 +88,11 @@ function exportSuite(data, dir) {
     settings: { appName: s.appName || '', stepTimeout: s.stepTimeout, retries: s.retries || 0, activeEnvironment: s.activeEnvironment, testIdAttribute: s.testIdAttribute || 'data-testid' }
   });
   replaceDir(path.join(dir, 'tests'), (data.tests || []).map((t) => {
-    const copy = { ...t, steps: cleanSteps(t.id, t.steps) };
+    const copy = { ...t, steps: cleanSteps(t.id, t.steps, warnings) };
     RUNTIME_TEST_FIELDS.forEach((k) => delete copy[k]);
     return { value: copy, id: t.id };
   }), (x) => x.id);
-  replaceDir(path.join(dir, 'blocks'), (data.blocks || []).map((b) => ({ value: { ...b, steps: cleanSteps('Block “' + b.name + '”', b.steps) }, id: b.id })), (x) => x.id);
+  replaceDir(path.join(dir, 'blocks'), (data.blocks || []).map((b) => ({ value: { ...b, steps: cleanSteps('Block “' + b.name + '”', b.steps, warnings) }, id: b.id })), (x) => x.id);
   replaceDir(path.join(dir, 'environments'), (data.environments || []).map((e) => ({ value: { ...e, variables: blankVars(e.variables) }, id: e.name })), (x) => x.id);
   writeJson(path.join(dir, 'data', 'variables.json'), blankVars(data.variables));
   return warnings;
@@ -106,16 +122,6 @@ function loadSuite(dir) {
 // Secret values already on this computer are kept when the suite has them blank.
 function importSuite(target, dir) {
   const suite = loadSuite(dir);
-  const upsert = (list, items, key) => {
-    for (const item of items) {
-      const i = list.findIndex((x) => x[key] === item[key]);
-      if (i >= 0) {
-        const keepRuntime = {};
-        RUNTIME_TEST_FIELDS.forEach((k) => { if (list[i][k] !== undefined) keepRuntime[k] = list[i][k]; });
-        list[i] = { ...item, ...keepRuntime };
-      } else list.push(item);
-    }
-  };
   const mergeVars = (existing, incoming) => incoming.map((v) => {
     const old = (existing || []).find((x) => x.key === v.key);
     return v.secret && !v.value && old ? { ...v, value: old.value } : v;
@@ -133,4 +139,4 @@ function importSuite(target, dir) {
   return { tests: suite.tests.length, blocks: suite.blocks.length, environments: suite.environments.length };
 }
 
-module.exports = { exportSuite, loadSuite, importSuite };
+module.exports = { exportSuite, loadSuite, importSuite, cleanSteps, upsert, RUNTIME_TEST_FIELDS };

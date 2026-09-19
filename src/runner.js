@@ -5,9 +5,7 @@ const { describeStep, metaFor } = require('./describe');
 const { substitute, expandSteps, locatorsFor } = require('./steps');
 const captureText = require('./capture');
 const { parseLocator, mapText, formatLocator, locatorQuality } = require('./locator-parse');
-
-// Playwright-style locator engine, evaluated in the page together with the functions that use it.
-const ENGINE_SOURCE = fs.readFileSync(path.join(__dirname, 'locator-engine.js'), 'utf8');
+const pw = require('./pw-session');
 
 let running = false;
 let cancelled = false;
@@ -67,30 +65,14 @@ function studioAct(loc, action, value, fieldAction) {
   let el = null;
   let used = null;
   let wanted;
-  if (loc.ast) {
-    // Playwright-style locator: strict, so more than one match is an error rather than a guess.
-    /* global __tsLocator */
-    const engine = typeof __tsLocator !== 'undefined' ? __tsLocator : null;
-    if (!engine) return { ok: false, fatal: true, reason: 'The locator engine did not load in the page.' };
-    let found;
-    try {
-      found = engine.resolve(loc.ast, { testIdAttribute: loc.testIdAttribute });
-    } catch (e) {
-      return { ok: false, fatal: true, reason: loc.source + ' is not valid on this page: ' + e.message };
-    }
+  if (loc.marked) {
+    // Playwright matched this step in the main process and tagged the one element it found.
+    el = document.querySelector('[data-ts-target]');
     wanted = loc.source;
-    if (found.length > 1) {
-      return { ok: false, fatal: true, reason: loc.source + ' matched ' + found.length + ' elements. Add .first() or .nth(), or make the locator more specific.' };
+    if (!el) return { ok: false, reason: 'Could not find ' + loc.source + ' on the page.' };
+    if (fieldAction && !(el.matches(fieldSel) || el.isContentEditable)) {
+      return { ok: false, fatal: true, reason: loc.source + ' is a ' + el.nodeName.toLowerCase() + ', not a field that can be typed into or selected.' };
     }
-    if (action === 'Verify element is hidden') {
-      return !found.length || !engine.isVisible(found[0]) ? { ok: true, used: 'locator' } : { ok: false, used: 'locator', reason: loc.source + ' is still visible.' };
-    }
-    if (!found.length) return { ok: false, reason: 'Could not find ' + loc.source + ' on the page.' };
-    if (!engine.isVisible(found[0])) return { ok: false, reason: loc.source + ' was found but is not visible.' };
-    if (fieldAction && !(found[0].matches(fieldSel) || found[0].isContentEditable)) {
-      return { ok: false, fatal: true, reason: loc.source + ' is a ' + found[0].nodeName.toLowerCase() + ', not a field that can be typed into or selected.' };
-    }
-    el = found[0];
     used = 'locator';
   } else {
     for (const [name, find] of strategies) {
@@ -218,8 +200,10 @@ function studioGrid(g, rowValue, action, value, scanId) {
   const root = (want.label && roots.find((r) => gridLabel(r) === want.label)) || roots[want.index || 0] || roots[0];
   const gridName = want.label ? 'the ' + want.label + ' grid' : 'the grid';
   const st = root.__tsScan && root.__tsScan.id === scanId ? root.__tsScan : (root.__tsScan = { id: scanId, v: 'start', h: 'start' });
-  const vp = root.querySelector('.ag-body-viewport');
-  const hp = root.querySelector('.ag-body-horizontal-scroll-viewport') || root.querySelector('.ag-center-cols-viewport');
+  // AG Grid 36 and later scroll rows and columns with one .ag-grid-viewport element.
+  const v36 = root.querySelector('.ag-grid-viewport');
+  const vp = root.querySelector('.ag-body-viewport') || v36;
+  const hp = v36 || root.querySelector('.ag-body-horizontal-scroll-viewport') || root.querySelector('.ag-center-cols-viewport');
 
   // Scrolls one page at a time to bring virtualised rows or columns into the page.
   const scan = (axis, reason) => {
@@ -253,6 +237,7 @@ function studioGrid(g, rowValue, action, value, scanId) {
   const column = g.column || {};
 
   let el = null;
+  let wantEdit = false;
   if (part === 'header' || part === 'header-menu' || part === 'header-filter' || part === 'floating-filter') {
     const h = headerFor(column);
     if (!h) return scan('h', 'Column “' + colName(column) + '” was not found in ' + gridName + '.');
@@ -279,15 +264,27 @@ function studioGrid(g, rowValue, action, value, scanId) {
   } else {
     // Find the row: remembered from an earlier call, by key column value, or by position.
     const r = g.row || {};
+    const contains = r.match === 'contains';
+    const hidden = action === 'Verify element is hidden';
+    const parts = r.mode === 'path' ? String(rowValue || '').split(/\s+(?:›|>|\/)\s+/).map(norm).filter(Boolean) : [];
+    const describeRow = r.mode === 'index' ? 'Row ' + ((Number(r.index) || 0) + 1)
+      : r.mode === 'path' ? 'Row “' + parts.join(' › ') + '”'
+      : 'Row where ' + colName(r.column) + (contains ? ' contains “' : ' is “') + rowValue + '”';
+    // A row that is not in the grid only counts as missing once the whole grid has been searched.
+    const missing = (res) => (res.scrolled ? res : { ...res, missing: true });
+    if (hidden && !root.querySelector('.ag-row, .ag-overlay-no-rows-wrapper, .ag-overlay-no-rows-center')) {
+      return { ok: false, reason: gridName + ' has not finished loading.' };
+    }
     const rowSel = () => st.rowId != null ? '.ag-row[row-id="' + esc(st.rowId) + '"]' : '.ag-row[row-index="' + esc(st.rowIndex) + '"]';
     if (st.rowId == null && st.rowIndex == null || !root.querySelector(rowSel())) {
+      // The row that was found has gone, so search the whole grid again.
+      if (hidden && (st.rowId != null || st.rowIndex != null)) { st.v = 'start'; st.vDone = false; st.path = null; }
       st.rowId = st.rowIndex = null;
-      const describeRow = r.mode === 'index' ? 'Row ' + ((Number(r.index) || 0) + 1) : 'Row where ' + colName(r.column) + ' is “' + rowValue + '”';
       let row = null;
       if (r.mode === 'index') {
         row = root.querySelector('.ag-row[row-index="' + (Number(r.index) || 0) + '"]');
         if (!row && vp) {
-          const sample = root.querySelector('.ag-center-cols-container .ag-row');
+          const sample = root.querySelector('.ag-center-cols-container .ag-row') || root.querySelector('.ag-row');
           const height = sample ? sample.offsetHeight : 40;
           if (!st.jumped) {
             st.jumped = true;
@@ -295,14 +292,66 @@ function studioGrid(g, rowValue, action, value, scanId) {
             return { ok: false, scrolled: true, reason: describeRow + ' was not found in ' + gridName + '.' };
           }
         }
-        if (!row) return { ok: false, reason: describeRow + ' was not found in ' + gridName + '.' };
+        if (!row) return { ok: false, missing: true, reason: describeRow + ' was not found in ' + gridName + '.' };
+      } else if (r.mode === 'path') {
+        // Tree data: walk the rows from the top, keeping the names of the folders above each row,
+        // and open collapsed folders on the way. Checking that a row is not shown does not open folders.
+        if (!parts.length) return { ok: false, reason: 'No path is set for the row.' };
+        const key = headerFor(r.column);
+        const anyTree = root.querySelector('.ag-cell .ag-group-value');
+        const keyId = key ? key.getAttribute('col-id') : (r.column && r.column.colId) || (anyTree && anyTree.closest('.ag-cell').getAttribute('col-id'));
+        if (!keyId || !root.querySelector('.ag-cell[col-id="' + esc(keyId) + '"]')) {
+          if (!root.querySelector('.ag-row')) return { ok: false, reason: gridName + ' has not finished loading.' };
+          return scan('h', 'Column “' + colName(r.column) + '” was not found in ' + gridName + '.');
+        }
+        if (!st.path) {
+          st.path = { stack: [], last: -1, deepest: 0 };
+          if (vp && vp.scrollTop > 0) {
+            vp.scrollTop = 0;
+            st.v = 'scanning';
+            return { ok: false, scrolled: true, reason: describeRow + ' was not found in ' + gridName + '.' };
+          }
+        }
+        const p = st.path;
+        const rows = Array.from(root.querySelectorAll('.ag-cell[col-id="' + esc(keyId) + '"]'))
+          .map((c) => ({ cell: c, row: c.closest('.ag-row') }))
+          .filter((x) => x.row && Number.isFinite(Number(x.row.getAttribute('row-index'))))
+          .sort((a, b) => Number(a.row.getAttribute('row-index')) - Number(b.row.getAttribute('row-index')));
+        for (const { cell: c, row: rowEl } of rows) {
+          const index = Number(rowEl.getAttribute('row-index'));
+          if (index <= p.last) continue;
+          p.last = index;
+          const level = Number((rowEl.className.match(/ag-row-level-(\d+)/) || [0, 0])[1]);
+          p.stack.length = Math.min(p.stack.length, level);
+          p.stack[level] = norm((c.querySelector('.ag-group-value') || c).innerText);
+          const path = p.stack.slice(0, level + 1);
+          if (path.length > parts.length || path.some((name, i) => name !== parts[i])) continue;
+          p.deepest = Math.max(p.deepest, path.length);
+          if (path.length === parts.length) { row = rowEl; st.path = null; break; }
+          const collapsed = rowEl.getAttribute('aria-expanded') === 'false' || c.getAttribute('aria-expanded') === 'false';
+          const arrow = collapsed && Array.from(c.querySelectorAll('.ag-group-contracted')).find((a) => !a.classList.contains('ag-hidden'));
+          if (arrow && !hidden) {
+            arrow.click();
+            st.path = null;
+            st.v = 'start';
+            st.vDone = false;
+            return { ok: false, scrolled: true, reason: 'Could not open “' + path[path.length - 1] + '” in ' + gridName + '.' };
+          }
+        }
+        if (!row) {
+          const where = p.deepest ? '“' + parts[p.deepest] + '” was not found under “' + parts.slice(0, p.deepest).join(' › ') + '”' : '“' + parts[0] + '” was not found';
+          const res = missing(scan('v', where + ' in ' + gridName + '.'));
+          if (!res.scrolled) st.path = null;
+          return res;
+        }
       } else {
         const key = headerFor(r.column);
         const keyId = key ? key.getAttribute('col-id') : r.column && r.column.colId;
         const keyCells = keyId ? Array.from(root.querySelectorAll('.ag-cell[col-id="' + esc(keyId) + '"]')) : [];
         if (!key && !keyCells.length) return scan('h', 'Column “' + colName(r.column) + '” was not found in ' + gridName + '.');
-        const match = keyCells.find((c) => norm(c.innerText) === norm(rowValue));
-        if (!match) return scan('v', describeRow + ' was not found in ' + gridName + '.');
+        const wanted = norm(rowValue).toLowerCase();
+        const match = keyCells.find((c) => (contains ? norm(c.innerText).toLowerCase().includes(wanted) : norm(c.innerText) === norm(rowValue)));
+        if (!match) return missing(scan('v', describeRow + ' was not found in ' + gridName + '.'));
         row = match.closest('.ag-row');
       }
       st.rowId = row.getAttribute('row-id');
@@ -310,13 +359,26 @@ function studioGrid(g, rowValue, action, value, scanId) {
       st.h = 'start';
       st.hDone = false;
     }
+    if (hidden) return { ok: true, rowFound: true, reason: describeRow + ' is still in ' + gridName + '.' };
 
     const h = headerFor(column);
-    const colId = h ? h.getAttribute('col-id') : column.colId;
+    let colId = h ? h.getAttribute('col-id') : column.colId;
+    if (!colId && (g.inner === 'expand' || g.inner === 'collapse')) {
+      // Expanding needs no column: use the column that shows the tree.
+      const treeCell = root.querySelector(rowSel() + ' .ag-group-value');
+      colId = treeCell && treeCell.closest('.ag-cell').getAttribute('col-id');
+    }
     const cell = colId && root.querySelector(rowSel() + ' .ag-cell[col-id="' + esc(colId) + '"]');
     if (!cell) return scan('h', 'Column “' + colName(column) + '” was not found in ' + gridName + '.');
     el = cell;
-    if (g.inner) {
+    if (g.inner === 'expand' || g.inner === 'collapse') {
+      const rowEl = cell.closest('.ag-row');
+      const open = rowEl.getAttribute('aria-expanded') || cell.getAttribute('aria-expanded');
+      if ((g.inner === 'expand' && open === 'true') || (g.inner === 'collapse' && open === 'false')) return { ok: true, used: 'grid' };
+      const arrows = Array.from(root.querySelectorAll(rowSel() + ' ' + (g.inner === 'expand' ? '.ag-group-contracted' : '.ag-group-expanded')));
+      el = arrows.find((a) => !a.classList.contains('ag-hidden') && a.getBoundingClientRect().width);
+      if (!el) return { ok: false, reason: describeRow + ' has no children to ' + g.inner + '.' };
+    } else if (g.inner) {
       el = cell.querySelector(g.inner === 'a' ? 'a' : 'button,[role=button]');
       if (!el) return { ok: false, reason: 'There is no ' + (g.inner === 'a' ? 'link' : 'button') + ' in the “' + colName(column) + '” cell.' };
     }
@@ -327,8 +389,11 @@ function studioGrid(g, rowValue, action, value, scanId) {
       return actual.includes(norm(value)) ? { ok: true, used: 'grid' } : { ok: false, used: 'grid', reason: 'The “' + colName(column) + '” cell shows “' + actual.slice(0, 200) + '”, expected it to contain “' + norm(value) + '”.' };
     }
     const editor = cell.querySelector('input:not([type=checkbox]):not([type=radio]),textarea,[contenteditable="true"]');
-    if (action === 'Type') {
-      if (!editor) return { ok: false, reason: 'The “' + colName(column) + '” cell is not being edited. Add a Double-click step on the cell first.' };
+    if (action === 'Type' && !editor) {
+      // Open the cell editor with a double-click, once, then type on the next call.
+      if (st.editTried) return { ok: false, reason: 'The “' + colName(column) + '” cell did not open for editing. Check that the column is editable.' };
+      wantEdit = true;
+    } else if (action === 'Type') {
       editor.focus();
       if (editor.isContentEditable) editor.innerText = value;
       else Object.getOwnPropertyDescriptor(editor instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype, 'value').set.call(editor, value);
@@ -355,15 +420,32 @@ function studioGrid(g, rowValue, action, value, scanId) {
   // Mouse actions: make sure the element is inside the visible part of the grid first.
   const rect = el.getBoundingClientRect();
   if (vp && part === 'cell') {
-    const v = vp.getBoundingClientRect();
+    const box = vp.getBoundingClientRect();
+    // In AG Grid 36 the header and the scrollbars are inside the viewport, so use the area rows are shown in.
+    const header = root.querySelector('.ag-header');
+    const v = {
+      top: header && vp.contains(header) ? header.getBoundingClientRect().bottom : box.top,
+      bottom: box.top + vp.clientTop + vp.clientHeight,
+      left: box.left + vp.clientLeft,
+      right: box.left + vp.clientLeft + vp.clientWidth
+    };
     if (rect.top < v.top || rect.bottom > v.bottom) {
       vp.scrollTop += rect.top < v.top ? rect.top - v.top - 4 : rect.bottom - v.bottom + 4;
       return { ok: false, scrolled: true, reason: 'Could not scroll to the “' + colName(column) + '” cell.' };
     }
+    const pinned = el.closest('.ag-pinned-left-cols-container,.ag-pinned-right-cols-container,.ag-grid-pinned-left-cells,.ag-grid-pinned-right-cells');
+    let c = null;
     const center = root.querySelector('.ag-center-cols-viewport');
-    const pinned = el.closest('.ag-pinned-left-cols-container,.ag-pinned-right-cols-container');
-    if (center && hp && !pinned) {
-      const c = center.getBoundingClientRect();
+    if (center) c = center.getBoundingClientRect();
+    else if (v36) {
+      // Scrolling columns pass under the pinned columns, so the visible band is between them.
+      const rowEl = el.closest('.ag-row');
+      const edge = (sel) => { const e = rowEl && rowEl.querySelector(sel); const r = e && e.getBoundingClientRect(); return r && r.width ? r : null; };
+      const left = edge('.ag-grid-pinned-left-cells');
+      const right = edge('.ag-grid-pinned-right-cells');
+      c = { left: left ? left.right : v.left, right: right ? right.left : v.right };
+    }
+    if (c && hp && !pinned) {
       if (rect.left < c.left || rect.right > c.right) {
         hp.scrollLeft += rect.left < c.left ? rect.left - c.left - 4 : rect.right - c.right + 4;
         return { ok: false, scrolled: true, reason: 'Could not scroll to the “' + colName(column) + '” cell.' };
@@ -375,6 +457,10 @@ function studioGrid(g, rowValue, action, value, scanId) {
   const hit = document.elementFromPoint(x, y);
   if (!hit || !(hit === el || el.contains(hit) || (el.closest('.ag-cell') && el.closest('.ag-cell').contains(hit)))) {
     return { ok: false, reason: 'The “' + colName(column) + '” ' + (part === 'cell' ? 'cell' : 'header') + ' is covered by another element.' };
+  }
+  if (wantEdit) {
+    st.editTried = true;
+    return { ok: false, scrolled: true, editAt: { x, y }, reason: 'The “' + colName(column) + '” cell did not open for editing.' };
   }
   return { ok: true, used: 'grid', mouse: { x, y } };
 }
@@ -396,16 +482,20 @@ function studioVerify(text) {
 // ---------- Helpers ----------
 async function exec(wc, fn, ...args) {
   const call = '(' + fn.toString() + ')(' + args.map((a) => JSON.stringify(a)).join(',') + ')';
-  // Locator steps need the engine; it is evaluated in a wrapper so it adds nothing to the page's globals.
-  const needsEngine = args.some((a) => a && typeof a === 'object' && a.ast);
-  const code = needsEngine
-    ? '(function () { const module = {};\n' + ENGINE_SOURCE + '\n;const __tsLocator = module.exports;\nreturn ' + call + '; })()'
-    : call;
   try {
-    return await wc.executeJavaScript(code, true);
+    return await wc.executeJavaScript(call, true);
   } catch (e) {
     return { ok: false, reason: 'The page was still loading.' };
   }
+}
+
+// Resolves a step's locator with Playwright when it has one, then performs the action in the page.
+// Steps recorded before locators existed still use the older hints, matched in the page as before.
+async function act(wc, ctx, loc, action, value, fieldAction) {
+  if (!loc.ast) return exec(wc, studioAct, loc, action, value, fieldAction);
+  const found = await pw.markTarget(ctx.page, loc, action);
+  if (!found.ok || found.done) return found;
+  return exec(wc, studioAct, { marked: true, source: loc.source }, action, value, fieldAction);
 }
 
 // Polls fn until it succeeds or times out. While a grid is being scrolled to search for a row,
@@ -451,6 +541,7 @@ function pressEnter(wc) {
 
 async function gridStep(wc, step, ctx, value, vars, timeout) {
   const g = step.grid;
+  if (step.action === 'Verify element is hidden' && (g.part || 'cell') !== 'cell') throw new Error('Only a row can be checked as not in the grid. Set the grid part to Cell.');
   const scanId = Math.random().toString(36).slice(2);
   const rowValue = g.row && g.row.mode !== 'index' ? substitute(g.row.value, vars) : null;
   const res = await tryUntil(async () => {
@@ -458,6 +549,15 @@ async function gridStep(wc, step, ctx, value, vars, timeout) {
     if (r.hover) {
       wc.sendInputEvent({ type: 'mouseMove', x: Math.round(r.hover.x), y: Math.round(r.hover.y) });
       await delay(200);
+    }
+    if (r.editAt) {
+      await mouseAt(wc, r.editAt, 'Double-click');
+      await delay(250);
+    }
+    // Checking a row is not in the grid: finding it is the failure, and a full search without it is the pass.
+    if (step.action === 'Verify element is hidden') {
+      if (r.rowFound) return { ok: false, reason: r.reason };
+      if (r.missing) return { ok: true };
     }
     return r;
   }, timeout);
@@ -498,12 +598,13 @@ async function executeStep(wc, step, ctx) {
     case 'Verify element is disabled':
     case 'Verify field value':
     case 'Verify element text': {
-      const res = await tryUntil(() => exec(wc, studioAct, locatorsFor(step, vars, ctx.settings), step.action, value, !!meta.field), timeout);
+      const loc = locatorsFor(step, vars, ctx.settings);
+      const res = await tryUntil(() => act(wc, ctx, loc, step.action, value, !!meta.field), timeout);
       if (!res.ok) throw new Error(res.reason || 'The step could not be completed.');
       if (res.mouse) await mouseAt(wc, res.mouse, step.action);
       if (step.action === 'Press Enter') pressEnter(wc);
       if (!meta.verify) await settle(wc, ctx.beforeCapture);
-      return { used: res.used, quality: res.used === 'locator' ? locatorsFor(step, vars, ctx.settings).quality : null };
+      return { used: res.used, quality: loc.ast ? loc.quality : null };
     }
     case 'Save value from text': {
       try {
@@ -513,7 +614,7 @@ async function executeStep(wc, step, ctx) {
       }
       const res = await tryUntil(async () => {
         const r = step.target && String(step.target).trim()
-          ? await exec(wc, studioAct, locatorsFor(step, vars, ctx.settings), 'Read text', '', false)
+          ? await act(wc, ctx, locatorsFor(step, vars, ctx.settings), 'Read text', '', false)
           : await exec(wc, studioPageText);
         if (!r.ok) return r;
         for (const text of r.texts || [r.text]) {
@@ -602,11 +703,13 @@ async function runAttempt({ t, ti, attempt, ctx, settings, run, dir, publish }) 
   wc.on('console-message', (event) => {
     if (event.level === 'error') t.consoleErrors.push(String(event.message).slice(0, 500));
   });
+  await wc.loadURL('about:blank').catch(() => {});
+  const page = await pw.pageForWebContents(wc);
+
   // Values saved during this attempt come first, then values shared by earlier tests, then test data.
   const runtime = new Map();
   const entries = (m) => Array.from(m, ([key, value]) => ({ key, value }));
-  const stepCtx = { ...ctx, consoleErrors: () => t.consoleErrors, vars: () => [...entries(runtime), ...entries(ctx.shared), ...ctx.variables] };
-  await wc.loadURL('about:blank').catch(() => {});
+  const stepCtx = { ...ctx, page, consoleErrors: () => t.consoleErrors, vars: () => [...entries(runtime), ...entries(ctx.shared), ...ctx.variables] };
 
   let failed = false;
   try {
@@ -677,6 +780,13 @@ async function runAttempt({ t, ti, attempt, ctx, settings, run, dir, publish }) 
 async function run({ run, tests, blocks, variables, settings, dir, onUpdate }) {
   running = true;
   cancelled = false;
+  try {
+    await pw.connect();
+    pw.setTestIdAttribute(settings.testIdAttribute);
+  } catch (e) {
+    running = false;
+    throw new Error('Test Studio could not start its browser automation. ' + e.message);
+  }
   const ctx = { variables, settings, blocks, shared: new Map() };
   const retries = Math.max(0, Math.min(5, parseInt(settings.retries, 10) || 0));
 

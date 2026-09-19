@@ -61,7 +61,7 @@ function cli(args, env = {}) {
     assert.equal(results.summary.flaky, 1);
 
     // AG Grid and captured values.
-    for (const id of ['TC006', 'TC007', 'TC008', 'TC009', 'TC010']) assert.equal(byId[id].status, 'Passed', id + ': ' + JSON.stringify(byId[id].failure));
+    for (const id of ['TC006', 'TC007', 'TC008', 'TC009', 'TC010', 'TC013', 'TC014']) assert.equal(byId[id].status, 'Passed', id + ': ' + JSON.stringify(byId[id].failure));
     assert.deepEqual(byId.TC007.captured, { orderId: '1003' });
     assert.deepEqual(byId.TC009.captured, { newOrderId: '5001' });
     const tc010 = JSON.parse(fs.readFileSync(path.join(latest.dir, 'run.json'), 'utf8')).tests.find((t) => t.id === 'TC010');
@@ -75,7 +75,7 @@ function cli(args, env = {}) {
     assert.match(byId.TC012.failure.error, /getByRole\('button', \{ name: 'Edit' \}\) matched 2 elements/);
 
     const junit = fs.readFileSync(path.join(latest.dir, 'junit.xml'), 'utf8');
-    assert.match(junit, /tests="12" failures="3"/);
+    assert.match(junit, /tests="14" failures="3"/);
     for (const f of ['report.html', 'evidence.docx', 'run.json']) assert.ok(fs.statSync(path.join(latest.dir, f)).size > 0, f);
 
     const shot = byId.TC003.failure.screenshot;

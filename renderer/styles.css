@@ -88,8 +88,9 @@ p { margin: 0; }
 .tr { display: grid; gap: 14px; padding: 12px 20px; border-bottom: 1px solid var(--line-soft); align-items: center; }
 .tr:last-child { border-bottom: 0; }
 .th { background: var(--panel); border-bottom: 1px solid var(--line); font-size: 12px; font-weight: 600; color: var(--muted); }
-.cols-tests { grid-template-columns: 80px minmax(0, 1fr) 60px 150px 110px 160px 180px; }
-.cols-steps { grid-template-columns: 36px 190px minmax(0, 1fr) minmax(0, 1fr) 150px 112px; padding: 10px 18px; }
+.cols-tests { grid-template-columns: 80px minmax(0, 1fr) 60px 150px 110px 160px 300px; }
+.tr.is-disabled > div:not(.row-actions):not(.step-options) { opacity: .55; }
+.cols-steps { grid-template-columns: 36px 190px minmax(0, 1fr) minmax(0, 1fr) 150px 148px; padding: 10px 18px; }
 .cols-runs { grid-template-columns: 180px minmax(0, 1fr) 110px 100px 320px; }
 .cols-vars { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) 90px 44px; }
 .form-grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }

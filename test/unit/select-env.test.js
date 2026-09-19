@@ -18,6 +18,15 @@ test('selectTests filters by tag (any, case-insensitive), exclusion, ids and app
   assert.equal(selectTests(tests, {}).length, 3);
 });
 
+test('selectTests leaves out disabled tests unless they are named by id', () => {
+  const ids = (list) => list.map((t) => t.id);
+  const withDisabled = tests.concat({ id: 'TC004', tags: ['smoke'], approval: 'Approved', disabled: true });
+  assert.deepEqual(ids(selectTests(withDisabled, {})), ['TC001', 'TC002', 'TC003']);
+  assert.deepEqual(ids(selectTests(withDisabled, { tags: 'smoke' })), ['TC001']);
+  assert.deepEqual(ids(selectTests(withDisabled, { approvedOnly: true })), ['TC001', 'TC003']);
+  assert.deepEqual(ids(selectTests(withDisabled, { ids: 'TC004' })), ['TC004']);
+});
+
 test('parseTags normalises and removes duplicates', () => {
   assert.deepEqual(parseTags(' Smoke, smoke checkout,,'), ['smoke', 'checkout']);
 });

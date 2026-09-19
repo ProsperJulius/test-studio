@@ -30,6 +30,7 @@ const ICON = {
   down: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>',
   up: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15l-6-6-6 6"/></svg>',
   chevDown: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
+  copy: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>',
   trash: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B3261E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>'
 };
 
@@ -64,7 +65,7 @@ function setPath(obj, path, value) {
 }
 
 function newGridTarget(step) {
-  return { grid: { index: 0, label: '' }, part: 'cell', column: { colId: '', header: step.target || '' }, row: { mode: 'match', column: { colId: '', header: '' }, value: '' }, inner: null };
+  return { grid: { index: 0, label: '' }, part: 'cell', column: { colId: '', header: step.target || '' }, row: { mode: 'match', match: 'equals', column: { colId: '', header: '' }, value: '' }, inner: null };
 }
 
 // Explains what a "Save value from text" template will save, or what is wrong with it.
@@ -195,10 +196,11 @@ function screenHtml() {
 // ----- Tests list -----
 function testsHtml() {
   const tests = filteredTests();
-  const approved = S.data.tests.filter((t) => t.approval === 'Approved').length;
+  const approved = S.data.tests.filter((t) => t.approval === 'Approved' && !t.disabled).length;
+  const runnable = tests.filter((t) => !t.disabled);
   const filtering = S.filter.tag || S.filter.text.trim();
   const rows = tests.map((t) => `
-    <div class="tr cols-tests">
+    <div class="tr cols-tests${t.disabled ? ' is-disabled' : ''}">
       <div class="mono muted">${esc(t.id)}</div>
       <div>
         <div class="row-title">${esc(t.title)}</div>
@@ -206,11 +208,13 @@ function testsHtml() {
       </div>
       <div>${(t.steps || []).length}</div>
       <div class="muted">${esc(fmt(t.lastRun))}</div>
-      <div><span class="pill ${statusClass(t.lastStatus)}">${esc(t.lastStatus || 'Draft')}</span>${t.flaky ? ' <span class="pill flaky" title="Passed only after a retry last time">Flaky</span>' : ''}</div>
+      <div><span class="pill ${statusClass(t.lastStatus)}">${esc(t.lastStatus || 'Draft')}</span>${t.flaky ? ' <span class="pill flaky" title="Passed only after a retry last time">Flaky</span>' : ''}${t.disabled ? ' <span class="pill neutral" title="Left out of group and scheduled runs">Disabled</span>' : ''}</div>
       <div class="muted">${esc(t.approval || 'Not submitted')}</div>
       <div class="row-actions">
         <button class="btn btn-sm" data-act="edit-test" data-id="${esc(t.id)}">Edit</button>
         <button class="btn btn-sm" data-act="run-tests" data-ids="${esc(t.id)}">Run</button>
+        <button class="btn btn-sm" data-act="clone-test" data-id="${esc(t.id)}">Clone</button>
+        <button class="btn btn-sm" data-act="toggle-test" data-id="${esc(t.id)}">${t.disabled ? 'Enable' : 'Disable'}</button>
         <button class="icon-btn" aria-label="Delete ${esc(t.title)}" data-act="delete-test" data-id="${esc(t.id)}">${ICON.trash}</button>
       </div>
     </div>`).join('');
@@ -234,6 +238,8 @@ function testsHtml() {
       </div>
       <div class="actions">
         <button class="btn" data-act="validate">Check suite</button>
+        <button class="btn" data-act="yaml-import">Import YAML…</button>
+        <button class="btn" data-act="yaml-export" ${tests.length ? '' : 'disabled'} title="Exports the tests shown in the list">Export YAML…</button>
         <button class="btn" data-act="run-approved" ${approved ? '' : 'disabled title="Approve at least one test first"'}>${ICON.play} Run approved tests (${approved})</button>
         <button class="btn btn-primary" data-act="new-test">${ICON.rec} Record new test</button>
       </div>
@@ -247,7 +253,7 @@ function testsHtml() {
         ${allTags().map((tag) => `<option value="${esc(tag)}" ${tag === S.filter.tag ? 'selected' : ''}>${esc(tag)}</option>`).join('')}
       </select>
       ${filtering ? `<span class="muted">${tests.length} of ${S.data.tests.length} tests</span>
-        <button class="btn btn-sm" data-act="run-tests" data-ids="${esc(tests.map((t) => t.id).join(','))}" ${tests.length ? '' : 'disabled'}>${ICON.play} Run these (${tests.length})</button>
+        <button class="btn btn-sm" data-act="run-tests" data-ids="${esc(runnable.map((t) => t.id).join(','))}" ${runnable.length ? '' : 'disabled'}>${ICON.play} Run these (${runnable.length})</button>
         <button class="btn btn-sm" data-act="clear-filter">Clear</button>` : ''}
     </div>
     <div class="table">
@@ -257,7 +263,10 @@ function testsHtml() {
     <div class="card empty">
       <strong>No tests yet</strong>
       <p>Record your first test by clicking through the application as you do in manual testing.</p>
-      <button class="btn btn-primary" data-act="new-test">${ICON.rec} Record new test</button>
+      <div class="actions" style="justify-content: center;">
+        <button class="btn btn-primary" data-act="new-test">${ICON.rec} Record new test</button>
+        <button class="btn" data-act="yaml-import">Import tests from YAML…</button>
+      </div>
     </div>`}
     <div class="explainers">
       <div class="card"><strong>1. Record</strong><p>Click through the app. Every click, entry and selection becomes a plain-English step.</p></div>
@@ -407,12 +416,13 @@ function editHtml() {
       panel = `<div class="tr step-panel"><span class="${pv.ok ? 'muted' : 'txt-warn'}">${esc(pv.text)}</span></div>`;
     }
     return `
-    <div class="tr cols-steps">
+    <div class="tr cols-steps${st.disabled ? ' is-disabled' : ''}">
       <div class="mono muted">${i + 1}</div>
       <select class="field" aria-label="Action" data-field="action" data-i="${i}">${actionOpts}</select>
       ${targetField}
       ${valueField}
-      <div style="display: flex; flex-direction: column; gap: 4px;">
+      <div class="step-options" style="display: flex; flex-direction: column; gap: 4px;">
+        <label class="check" title="Unticked steps stay in the test but are not run"><input type="checkbox" data-field="enabled" data-i="${i}" ${st.disabled ? '' : 'checked'}> Run this step</label>
         <label class="check"><input type="checkbox" data-field="shot" data-i="${i}" ${st.shot ? 'checked' : ''}> Screenshot</label>
         ${meta.secretable || meta.capture ? `<label class="check"><input type="checkbox" data-field="secret" data-i="${i}" ${st.secret ? 'checked' : ''}> Hide value</label>` : ''}
         ${meta.capture ? `<label class="check" title="Later tests in the same run can use this value"><input type="checkbox" data-field="shareWithRun" data-i="${i}" ${st.shareWithRun ? 'checked' : ''}> Share with later tests</label>` : ''}
@@ -420,6 +430,7 @@ function editHtml() {
       <div class="row-actions">
         <button class="icon-btn" aria-label="Move step up" data-act="step-move" data-i="${i}" data-d="-1">${ICON.up}</button>
         <button class="icon-btn" aria-label="Move step down" data-act="step-move" data-i="${i}" data-d="1">${ICON.chevDown}</button>
+        <button class="icon-btn" aria-label="Clone step" title="Clone step" data-act="step-clone" data-i="${i}">${ICON.copy}</button>
         <button class="icon-btn" aria-label="Delete step" data-act="step-remove" data-i="${i}">${ICON.trash}</button>
       </div>
     </div>${panel}`;
@@ -446,9 +457,11 @@ function editHtml() {
           <label class="form-row">Tags<input class="field" data-field="tags" value="${esc((o.tags || []).join(', '))}" placeholder="smoke, checkout"></label>
           <label class="form-row">Priority<select class="field" data-field="priority">${['P1', 'P2', 'P3'].map((p) => `<option ${p === (o.priority || 'P2') ? 'selected' : ''}>${p}</option>`).join('')}</select></label>
           <label class="form-row">Requirement or story<input class="field" data-field="requirement" value="${esc(o.requirement || '')}" placeholder="JIRA-123"></label>
-        </div>` : ''}
+        </div>
+        <label class="check" title="Disabled tests are left out of group and scheduled runs"><input type="checkbox" data-field="enabled" ${o.disabled ? '' : 'checked'}> Enabled</label>` : ''}
       </div>
       <div class="actions">
+        ${isTest ? `<button class="btn" data-act="yaml-export-one">Export YAML…</button>` : ''}
         ${isTest ? `<button class="btn" data-act="record-more">${ICON.rec} Record more</button>` : ''}
         ${reviewBtn}
         ${isTest ? `<button class="btn btn-primary" data-act="run-edit">${ICON.play} Run test</button>` : ''}
@@ -476,6 +489,7 @@ function gridPanelHtml(st, i) {
   const f = (path, label, placeholder, attrs = '') => `<label class="form-row">${label}<input class="field" data-grid="${path}" data-i="${i}" value="${esc(getPath(g, path) == null ? '' : getPath(g, path))}" placeholder="${esc(placeholder)}" ${attrs}></label>`;
   const sel = (path, label, options) => `<label class="form-row">${label}<select class="field" data-grid="${path}" data-i="${i}">${options.map(([v, t]) => `<option value="${esc(v)}" ${String(getPath(g, path) || '') === v ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>`;
   const isCell = (g.part || 'cell') === 'cell';
+  const hideCheck = st.action === 'Verify element is hidden';
   const r = g.row || {};
   return `
   <div class="tr step-panel">
@@ -483,14 +497,21 @@ function gridPanelHtml(st, i) {
       ${f('grid.label', 'Grid', 'Grid heading or name (blank for the first grid)')}
       ${sel('part', 'Part', [['cell', 'Cell'], ['header', 'Column header (sorts)'], ['header-menu', 'Column menu button'], ['header-filter', 'Column filter button'], ['floating-filter', 'Filter box under the header']])}
       ${f('column.header', 'Column', 'Column header text')}
-      ${isCell ? sel('row.mode', 'Find the row', [['match', 'By a value in a column'], ['index', 'By position']]) : ''}
-      ${isCell && r.mode === 'index'
+      ${isCell ? sel('row.mode', 'Find the row', [['match', 'By a value in a column'], ['path', 'By path (tree)'], ['index', 'By position']]) : ''}
+      ${!isCell ? ''
+        : r.mode === 'index'
         ? `<label class="form-row">Row number<input class="field" type="number" min="1" data-grid="row.index" data-i="${i}" value="${(Number(r.index) || 0) + 1}"></label>`
-        : isCell ? f('row.column.header', 'Where column', 'For example Order ID') + f('row.value', 'Is', 'Value or {variable}') : ''}
-      ${isCell ? sel('inner', 'Click on', [['', 'The cell'], ['button', 'A button in the cell'], ['a', 'A link in the cell']]) : ''}
+        : r.mode === 'path'
+        ? f('row.column.header', 'Tree column', 'Blank for the column with the folders') + f('row.value', 'Path', 'Documents › Work › Report.pdf')
+        : f('row.column.header', 'Where column', 'For example Name')
+          + sel('row.match', 'Match', [['equals', 'Is exactly'], ['contains', 'Contains']])
+          + f('row.value', 'Value', r.match === 'contains' ? 'Part of the name, or {variable}' : 'Value or {variable}')}
+      ${isCell && !hideCheck ? sel('inner', 'Click on', [['', 'The cell'], ['button', 'A button in the cell'], ['a', 'A link in the cell'], ['expand', 'Expand the row (tree)'], ['collapse', 'Collapse the row (tree)']]) : ''}
     </div>
     <div class="actions">
-      ${isCell ? '<span class="muted">Finding rows by a value keeps the test working when the grid is sorted, filtered or scrolled.</span>' : ''}
+      ${hideCheck ? '<span class="muted">Passes when no row matches after searching the whole grid. The column is not used.</span>'
+        : isCell && r.mode === 'path' ? '<span class="muted">Separate folders with › , &gt; or / . Collapsed folders on the path are opened while the test runs.</span>'
+        : isCell ? '<span class="muted">Finding rows by a value keeps the test working when the grid is sorted, filtered or scrolled. Type opens the cell for editing by itself.</span>' : ''}
       <button class="btn btn-sm" style="margin-left: auto;" data-act="grid-remove" data-i="${i}">Stop using a grid target</button>
     </div>
   </div>`;
@@ -815,7 +836,7 @@ function settingsHtml() {
     </div>
     <div class="card card-pad">
       <h2>Share tests and run them in CI</h2>
-      <p class="muted">Export saves every test, block and environment as files in a folder. Keep that folder in version control so changes are reviewed, and run it from CI with <span class="mono">npx test-studio run --suite &lt;folder&gt;</span>. Import brings a suite folder back into Test Studio; tests with the same ID are replaced.</p>
+      <p class="muted">Export saves every test, block and environment as files in a folder. Keep that folder in version control so changes are reviewed, and run it from CI with <span class="mono">npx test-studio run --suite &lt;folder&gt;</span>. Import brings a suite folder back into Test Studio; tests with the same ID are replaced. To share a few tests as one YAML file, use Export YAML and Import YAML on the Tests page.</p>
       <div class="actions">
         <button class="btn" data-act="suite-export">Export suite to folder…</button>
         <button class="btn" data-act="suite-import">Import suite from folder…</button>
@@ -835,6 +856,12 @@ async function saveEditing() {
   const e = S.editing;
   if (!e) return;
   S.data = await call(e.kind === 'test' ? 'test:save' : 'block:save', clone(e.obj));
+}
+
+async function exportYaml(ids) {
+  const res = await call('tests:export-yaml', ids);
+  if (!res) return;
+  toast(res.warnings.length ? `Exported with ${res.warnings.length} warning(s): ${res.warnings[0]}` : 'Exported to ' + res.file, res.warnings.length ? 'error' : undefined);
 }
 
 async function startRun(ids) {
@@ -960,8 +987,29 @@ const actions = {
     render();
   },
 
+  'clone-test': async (el) => {
+    const t = S.data.tests.find((x) => x.id === el.dataset.id);
+    if (!t) return;
+    const obj = clone(t);
+    Object.assign(obj, { id: nextTestId(), title: t.title + ' (copy)', approval: 'Not submitted', lastStatus: 'Draft', lastRun: null, createdAt: new Date().toISOString(), disabled: false });
+    delete obj.flaky;
+    delete obj.updatedAt;
+    obj.steps = (obj.steps || []).map((st) => ({ ...st, id: uid() }));
+    S.data = await call('test:save', obj);
+    S.editing = { kind: 'test', obj: clone(obj) };
+    go('edit');
+    toast(`Cloned ${t.id} as ${obj.id}.`);
+  },
+
+  'toggle-test': async (el) => {
+    const t = S.data.tests.find((x) => x.id === el.dataset.id);
+    if (!t) return;
+    S.data = await call('test:save', { ...clone(t), disabled: !t.disabled });
+    toast(`${t.disabled ? 'Enabled' : 'Disabled'} ${t.id}.`);
+  },
+
   'run-tests': (el) => startRun(el.dataset.ids.split(',')),
-  'run-approved': () => startRun(S.data.tests.filter((t) => t.approval === 'Approved').map((t) => t.id)),
+  'run-approved': () => startRun(S.data.tests.filter((t) => t.approval === 'Approved' && !t.disabled).map((t) => t.id)),
   'run-edit': async () => { await saveEditing(); startRun([S.editing.obj.id]); },
   'cancel-run': () => call('run:cancel'),
   'back-from-run': () => go(S.editing && S.run && S.run.tests.length === 1 && S.editing.obj.id === S.run.tests[0].id ? 'edit' : 'tests'),
@@ -980,6 +1028,13 @@ const actions = {
     const steps = S.editing.obj.steps;
     if (j < 0 || j >= steps.length) return;
     [steps[i], steps[j]] = [steps[j], steps[i]];
+    markChanged();
+    render();
+  },
+  'step-clone': (el) => {
+    const i = +el.dataset.i;
+    const steps = S.editing.obj.steps;
+    steps.splice(i + 1, 0, { ...clone(steps[i]), id: uid() });
     markChanged();
     render();
   },
@@ -1063,6 +1118,14 @@ const actions = {
     if (!res) return;
     toast(res.warnings.length ? `Exported with ${res.warnings.length} warning(s): ${res.warnings[0]}` : 'Suite exported to ' + res.dir, res.warnings.length ? 'error' : undefined);
   },
+  'yaml-export': () => exportYaml(filteredTests().map((t) => t.id)),
+  'yaml-export-one': async () => { await saveEditing(); exportYaml([S.editing.obj.id]); },
+  'yaml-import': async () => {
+    const res = await call('tests:import-yaml');
+    if (!res) return;
+    S.data = res.data;
+    toast(`Imported ${res.counts.tests} test(s) and ${res.counts.blocks} block(s).`);
+  },
   'suite-import': async () => {
     const res = await call('suite:import');
     if (!res) return;
@@ -1133,8 +1196,11 @@ document.addEventListener('change', (e) => {
     if (f === 'startUrl') { o.startUrl = el.value.trim(); markChanged(); return; }
     if (f === 'tags') { o.tags = parseTags(el.value); el.value = o.tags.join(', '); markChanged(); return; }
     if (f === 'priority' || f === 'requirement') { o[f] = el.value.trim(); markChanged(); return; }
+    // Enabling or disabling does not change what the test does, so it keeps its approval.
+    if (f === 'enabled' && el.dataset.i === undefined) { o.disabled = !el.checked; scheduleSave(); return; }
     const step = o.steps[+el.dataset.i];
     if (!step) return;
+    if (f === 'enabled') { step.disabled = !el.checked; markChanged(); render(); return; }
     if (f === 'locator') {
       step.locator = el.value.trim() || undefined;
       const r = step.locator && LocatorParse.parseLocator(step.locator);
@@ -1163,7 +1229,7 @@ document.addEventListener('change', (e) => {
     setPath(step.grid, path, value);
     if (path === 'column.header') step.target = value;
     markChanged();
-    if (path === 'part' || path === 'row.mode') render();
+    if (path === 'part' || path === 'row.mode' || path === 'row.match') render();
     return;
   }
   if (el.dataset.var && S.varsDraft) {

@@ -79,14 +79,16 @@ Tests recorded before locators were added keep working as before. Open a step an
 
 Clicks, double-clicks and right-clicks on [AG Grid](https://www.ag-grid.com/) cells and headers are recorded by **column and row**, not by position on the page:
 
-- **Cells** are found by a key value, for example *Double-click “Notes” in the Orders grid, row where Order ID is “1250”*. The recorder picks an ID-like column (Order ID, Number, Reference, Code) whose value is unique; otherwise it uses the row position. The value can be test data or a saved value: `{orderId}`.
+- **Cells** are found by a key value, for example *Double-click “Notes” in the Orders grid, row where Order ID is “1250”*. The recorder picks an ID-like column (Order ID, Number, Reference, Code) whose value is unique; otherwise it uses the row position. The value can be test data or a saved value: `{orderId}`. In the step editor you can choose **Contains** instead of **Is exactly**, so `jane` finds *Jane Smith (Manager)*.
+- **Tree data** (for example a file explorer) is recorded by **path**: *Click “Created” in the grid, row “Documents › Work › ProjectAlpha › Proposal.docx”*. The same name in different folders is told apart, and collapsed folders on the path are opened while the test runs. Clicking a row's arrow is recorded as **Expand the row** or **Collapse the row**; these do nothing if the row is already that way, so they are safe to repeat.
 - **Headers:** clicking the header text (sorts), the column menu button, the filter button, or the filter box under the header.
 - **Buttons and links inside cells** (for example an *Edit* button that opens a form) are recorded as such.
-- **Editing:** double-click the cell, type, and press Enter. The Type and Press Enter steps are tied to the same cell.
+- **Editing:** double-click the cell, type, and press Enter. The Type and Press Enter steps are tied to the same cell. A Type step on a cell that is not being edited opens it with a double-click by itself.
+- **Checking a row is not there:** *Verify element is hidden* on a grid row passes only after the whole grid has been searched. It does not open collapsed tree folders, so a row inside a collapsed folder counts as not shown.
 
 When running, the grid is scrolled to find rows and columns that are not on screen, so tests keep working after sorting, filtering or new data. Grid and popup interactions use real mouse input. AG Grid's popups (column menus, filters, context menus, dropdown editors) and your own dialogs are recorded like any other page element.
 
-In the step editor, **Edit grid target** changes the grid (by its heading), the part, the column, and how the row is found. **Use a grid cell or header** turns an ordinary step into a grid step. Tested with AG Grid Community 32.
+In the step editor, **Edit grid target** changes the grid (by its heading), the part, the column, and how the row is found. **Use a grid cell or header** turns an ordinary step into a grid step. Tested with AG Grid Community 32 and 36, and with AG Grid 36 tree data (Enterprise).
 
 ## Saving values for later steps
 
@@ -149,7 +151,7 @@ npm run test:recorder # records clicks and typing and checks the generated locat
 npm run fixture     # starts the fixture app on http://127.0.0.1:4173 for manual recording
 ```
 
-The end-to-end suite covers every check type, reusable blocks, secret test data, retries and flaky detection, expected failures, reports, run comparison, AG Grid sorting, scrolling, editing, header filters and cell buttons, and saving values from toasts, including sharing them between tests. The fixture's orders grid is at `/orders.html`.
+The end-to-end suite covers every check type, reusable blocks, secret test data, retries and flaky detection, expected failures, reports, run comparison, AG Grid sorting, scrolling, editing, header filters and cell buttons, and saving values from toasts, including sharing them between tests. The fixture's orders grid is at `/orders.html` (AG Grid 32) and `/orders-v36.html` (AG Grid 36, with pinned columns). Tree data needs AG Grid Enterprise, which this project does not include, so `npm run test:live-aggrid` checks it against AG Grid's public File Explorer example instead; it needs internet access and is not part of `test:e2e`.
 
 ## How it works
 
@@ -202,7 +204,7 @@ In the app's user data folder, under `data/`:
 - **Secrets** are encrypted at rest only where the operating system keychain is available (on Linux this needs a keyring service); otherwise they are stored in plain text. Hidden step values typed directly into a step are not exported; use a secret `{variable}` instead.
 - **Schedules** in the app only run while Test Studio is open. For unattended runs, use the command-line runner from CI or the operating system scheduler.
 - **Approval** has no user roles in this version; anyone using the app can approve. Using pull request reviews on the exported suite folder gives an auditable approval trail.
-- **AG Grid:** rows are found by scrolling through the grid, so very large grids (thousands of rows) take longer, and server-side row models only work if rows load within about a minute. Grouped rows and master/detail rows are matched by their cell values only. The column menu button is supported but only header text, filter button and cell interactions are covered by automated tests. Canvas-based grids are not supported.
+- **AG Grid:** rows are found by scrolling through the grid, so very large grids (thousands of rows) take longer, and server-side row models only work if rows load within about a minute. Tree data rows are found by path, but grouped rows (row grouping) and master/detail rows are matched by their cell values only. The column menu button is supported but only header text, filter button and cell interactions are covered by automated tests. Canvas-based grids are not supported.
 - **Saved values:** a message shown for less than about half a second can be missed while running.
 - **Locators:** accessible names follow Playwright for common HTML and ARIA but not every edge case of the accname specification; shadow DOM and iframes are not searched. Not supported: `has`/`hasNot` filters, `and`/`or`, `frameLocator`. Actions wait for the element to be visible, not for Playwright's full actionability checks (stable, enabled, receiving events).
 - **Not yet included:** data-driven tests (CSV rows), setup/teardown and API steps, parallel runs, screenshot comparison against a baseline, and trend charts across many runs.

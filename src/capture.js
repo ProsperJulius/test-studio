@@ -115,6 +115,7 @@
   function capturedNames(steps, blocks, depth = 0) {
     const out = [];
     for (const s of steps || []) {
+      if (s.disabled) continue;
       if (s.action === 'Use block') {
         const b = (blocks || []).find((x) => x.id === s.value);
         if (b && depth < 5) out.push(...capturedNames(b.steps, blocks, depth + 1));

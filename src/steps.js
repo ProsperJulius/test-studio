@@ -21,6 +21,7 @@ function unresolved(value, variables) {
 function expandSteps(steps, blocks, depth = 0, prefix = '') {
   const out = [];
   for (const step of steps || []) {
+    if (step.disabled) continue;
     if (step.action === 'Use block') {
       const block = (blocks || []).find((b) => b.id === step.value);
       if (!block || depth > 5) {

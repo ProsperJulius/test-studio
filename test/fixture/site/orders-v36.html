@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Orders (AG Grid 36) – Shop</title>
+  <!-- AG Grid 36 styles itself with its theming API, so no stylesheet is linked. -->
+  <style>
+    body { font: 14px system-ui, sans-serif; margin: 16px; }
+    #modal { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; }
+    #modal[hidden] { display: none; }
+    #modal form { background: #fff; padding: 20px; display: flex; flex-direction: column; gap: 8px; min-width: 300px; }
+    .toast { position: fixed; bottom: 20px; right: 20px; background: #1A1C20; color: #fff; padding: 12px 16px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <h1>Orders</h1>
+  <button id="new-order">New order</button>
+  <div id="orders" style="height: 360px; width: 900px;"></div>
+
+  <div id="modal" hidden>
+    <form id="order-form">
+      <h2 id="modal-title">Edit order</h2>
+      <label for="customer">Customer</label>
+      <input id="customer">
+      <label for="quantity">Quantity</label>
+      <input id="quantity" type="number">
+      <button type="submit">Save order</button>
+    </form>
+  </div>
+
+  <script src="/vendor/ag-grid-36/dist/ag-grid-community.min.js"></script>
+  <script>
+    const statuses = ['Paid', 'Pending', 'Shipped', 'Cancelled'];
+    const rows = Array.from({ length: 300 }, (_, i) => ({
+      orderId: 1000 + i,
+      customer: 'Customer ' + (i + 1),
+      status: statuses[i % 4],
+      notes: '',
+      region: ['North', 'South', 'East', 'West'][i % 4],
+      warehouse: 'WH-' + (i % 7),
+      carrier: ['DHL', 'UPS', 'FedEx'][i % 3],
+      total: ((i * 37) % 500) + 10,
+      created: '2026-09-' + String((i % 28) + 1).padStart(2, '0')
+    }));
+
+    let editing = null;
+    let nextId = 5001;
+
+    function toast(text) {
+      const el = document.createElement('div');
+      el.className = 'toast';
+      el.setAttribute('role', 'status');
+      el.textContent = text;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 2000);
+    }
+
+    function openModal(row) {
+      editing = row;
+      document.getElementById('modal-title').textContent = row ? 'Edit order ' + row.orderId : 'New order';
+      document.getElementById('customer').value = row ? row.customer : '';
+      document.getElementById('modal').hidden = false;
+    }
+
+    class ActionsRenderer {
+      init(params) {
+        this.eGui = document.createElement('button');
+        this.eGui.textContent = 'Edit';
+        this.eGui.addEventListener('click', () => openModal(params.data));
+      }
+      getGui() { return this.eGui; }
+    }
+
+    const api = agGrid.createGrid(document.getElementById('orders'), {
+      rowData: rows,
+      getRowId: (p) => String(p.data.orderId),
+      defaultColDef: { sortable: true, filter: true, width: 150 },
+      columnDefs: [
+        { headerName: 'Order ID', field: 'orderId', pinned: 'left', width: 110 },
+        { headerName: 'Customer', field: 'customer' },
+        { headerName: 'Status', field: 'status' },
+        { headerName: 'Notes', field: 'notes', editable: true, width: 200 },
+        { headerName: 'Region', field: 'region' },
+        { headerName: 'Warehouse', field: 'warehouse' },
+        { headerName: 'Carrier', field: 'carrier' },
+        { headerName: 'Total', field: 'total' },
+        { headerName: 'Created', field: 'created' },
+        { headerName: 'Actions', colId: 'actions', cellRenderer: ActionsRenderer, sortable: false, filter: false, width: 110, pinned: 'right' }
+      ]
+    });
+    window.gridApi = api;
+
+    document.getElementById('new-order').addEventListener('click', () => openModal(null));
+    document.getElementById('order-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      document.getElementById('modal').hidden = true;
+      setTimeout(() => toast(editing ? 'Order ' + editing.orderId + ' updated.' : 'Order ' + nextId++ + ' created successfully'), 300);
+    });
+  </script>
+</body>
+</html>

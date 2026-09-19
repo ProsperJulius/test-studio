@@ -35,6 +35,7 @@ function validateSuite(data, variables, options = {}) {
   const checkSteps = (where, steps, isTest) => {
     let verifies = 0;
     (steps || []).forEach((s, i) => {
+      if (s.disabled) return;
       const at = where + ' step ' + (i + 1);
       const meta = metaFor(s.action);
       if (!ACTIONS.includes(s.action)) { add('error', at, 'Unknown action “' + s.action + '”.'); return; }
@@ -48,11 +49,16 @@ function validateSuite(data, variables, options = {}) {
 
       if (s.grid && meta.grid) {
         const g = s.grid;
-        if (!g.column || !(g.column.colId || g.column.header)) add('error', at, 'The grid column is not set.');
+        // Checking that a row is not in the grid needs only the row, not a column.
+        if (s.action === 'Verify element is hidden' && (g.part || 'cell') !== 'cell') add('error', at, 'Only a row can be checked as not in the grid. Set the grid part to Cell.');
+        const expands = g.inner === 'expand' || g.inner === 'collapse';
+        if (s.action !== 'Verify element is hidden' && !expands && (!g.column || !(g.column.colId || g.column.header))) add('error', at, 'The grid column is not set.');
         if ((g.part || 'cell') === 'cell') {
           const r = g.row || {};
           if (r.mode === 'index') {
             if (!(Number(r.index) >= 0)) add('error', at, 'The grid row number is not set.');
+          } else if (r.mode === 'path') {
+            if (!String(r.value || '').trim()) add('error', at, 'Say which tree row to use, for example Documents › Work › Report.pdf.');
           } else if (!r.column || !(r.column.colId || r.column.header) || !String(r.value || '').trim()) {
             add('error', at, 'Say which grid row to use: a column and the value to look for.');
           }
@@ -64,6 +70,7 @@ function validateSuite(data, variables, options = {}) {
           const quality = locatorQuality(parsed.ast);
           if (quality === 'nth') add('warning', at, s.locator + ' depends on the element’s position (.nth, .first or .last). Prefer a role, label or test ID.');
           else if (quality === 'css-path') add('warning', at, s.locator + ' depends on the page structure. Prefer a role, label or test ID.');
+          if (s.locatorNote) add('warning', at, s.locatorNote);
         }
       } else if (meta.target && !meta.optionalTarget && s.action !== 'Open page' && s.action !== 'Take screenshot' && !String(s.target || '').trim()) {
         add('error', at, 'No field, button or element is named.');
@@ -97,6 +104,7 @@ function validateSuite(data, variables, options = {}) {
   const shared = new Set();
   const checkReferences = (where, steps, available, sharedOut, depth = 0) => {
     (steps || []).forEach((s, i) => {
+      if (s.disabled) return;
       const at = where + ' step ' + (i + 1);
       if (s.action === 'Use block') {
         const block = blocks.find((b) => b.id === s.value);
@@ -120,6 +128,7 @@ function validateSuite(data, variables, options = {}) {
   for (const b of blocks) checkSteps('Block “' + b.name + '”', b.steps, false);
   for (const t of tests) {
     if (!(t.steps || []).length) { add('error', t.id, 'Has no steps.'); continue; }
+    if (t.steps.every((s) => s.disabled)) { add('error', t.id, 'All steps are disabled.'); continue; }
     checkSteps(t.id, t.steps, true);
     checkReferences(t.id, t.steps, new Set([...defined, ...shared]), shared);
   }

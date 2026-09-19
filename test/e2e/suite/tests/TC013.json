@@ -1,0 +1,240 @@
+{
+  "id": "TC013",
+  "title": "Grid: find a row by part of a name, edit a cell with one step, check a row is absent",
+  "tags": [
+    "grid"
+  ],
+  "priority": "P2",
+  "requirement": "",
+  "approval": "Approved",
+  "startUrl": "/orders.html",
+  "steps": [
+    {
+      "id": "s130",
+      "action": "Open page",
+      "target": "orders",
+      "recordedTarget": "orders",
+      "value": "/orders.html",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s131",
+      "action": "Verify element is visible",
+      "target": "Status",
+      "recordedTarget": "Status",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": "Orders"
+        },
+        "part": "cell",
+        "column": {
+          "colId": "status",
+          "header": "Status"
+        },
+        "row": {
+          "mode": "match",
+          "match": "contains",
+          "column": {
+            "colId": "customer",
+            "header": "Customer"
+          },
+          "value": "customer 250"
+        },
+        "inner": null
+      }
+    },
+    {
+      "id": "s132",
+      "action": "Verify element text",
+      "target": "Status",
+      "recordedTarget": "Status",
+      "value": "Pending",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": "Orders"
+        },
+        "part": "cell",
+        "column": {
+          "colId": "status",
+          "header": "Status"
+        },
+        "row": {
+          "mode": "match",
+          "match": "contains",
+          "column": {
+            "colId": "customer",
+            "header": "Customer"
+          },
+          "value": "customer 250"
+        },
+        "inner": null
+      }
+    },
+    {
+      "id": "s133",
+      "action": "Click",
+      "target": "Status",
+      "recordedTarget": "Status",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": "Orders"
+        },
+        "part": "cell",
+        "column": {
+          "colId": "status",
+          "header": "Status"
+        },
+        "row": {
+          "mode": "match",
+          "match": "contains",
+          "column": {
+            "colId": "customer",
+            "header": "Customer"
+          },
+          "value": "customer 250"
+        },
+        "inner": null
+      }
+    },
+    {
+      "id": "s134",
+      "action": "Type",
+      "target": "Notes",
+      "recordedTarget": "Notes",
+      "value": "Checked by name",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": "Orders"
+        },
+        "part": "cell",
+        "column": {
+          "colId": "notes",
+          "header": "Notes"
+        },
+        "row": {
+          "mode": "match",
+          "match": "contains",
+          "column": {
+            "colId": "customer",
+            "header": "Customer"
+          },
+          "value": "customer 250"
+        },
+        "inner": null
+      }
+    },
+    {
+      "id": "s135",
+      "action": "Press Enter",
+      "target": "Notes",
+      "recordedTarget": "Notes",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": "Orders"
+        },
+        "part": "cell",
+        "column": {
+          "colId": "notes",
+          "header": "Notes"
+        },
+        "row": {
+          "mode": "match",
+          "match": "contains",
+          "column": {
+            "colId": "customer",
+            "header": "Customer"
+          },
+          "value": "customer 250"
+        },
+        "inner": null
+      }
+    },
+    {
+      "id": "s136",
+      "action": "Verify element text",
+      "target": "Notes",
+      "recordedTarget": "Notes",
+      "value": "Checked by name",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": "Orders"
+        },
+        "part": "cell",
+        "column": {
+          "colId": "notes",
+          "header": "Notes"
+        },
+        "row": {
+          "mode": "match",
+          "match": "equals",
+          "column": {
+            "colId": "customer",
+            "header": "Customer"
+          },
+          "value": "Customer 250"
+        },
+        "inner": null
+      }
+    },
+    {
+      "id": "s137",
+      "action": "Verify element is hidden",
+      "target": "Status",
+      "recordedTarget": "Status",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": "Orders"
+        },
+        "part": "cell",
+        "column": {
+          "colId": "status",
+          "header": "Status"
+        },
+        "row": {
+          "mode": "match",
+          "match": "equals",
+          "column": {
+            "colId": "customer",
+            "header": "Customer"
+          },
+          "value": "Nobody Ltd"
+        },
+        "inner": null
+      }
+    }
+  ]
+}

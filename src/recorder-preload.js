@@ -102,6 +102,35 @@ function gridLabel(root) {
 
 const KEY_HEADER = /\bid\b|number|\bno\b|reference|\bref\b|code|\bkey\b/i;
 
+// For tree data, the row's path such as “Documents › Work › Report.pdf”, built from the folder rows
+// above it. Returns null when the grid is not a tree or a folder above has scrolled out of the page.
+function gridTreePath(root, rowEl) {
+  // Older grids split a row into pinned and centre parts, so look in every part with this row index.
+  const valueEl = root.querySelector('.ag-row[row-index="' + CSS.escape(rowEl.getAttribute('row-index') || '') + '"] .ag-group-value');
+  const treeCell = valueEl && valueEl.closest('.ag-cell');
+  if (!treeCell) return null;
+  rowEl = treeCell.closest('.ag-row');
+  const colId = treeCell.getAttribute('col-id');
+  const levelOf = (r) => Number((r.className.match(/ag-row-level-(\d+)/) || [0, 0])[1]);
+  const nameOf = (r) => { const v = r.querySelector('.ag-cell[col-id="' + CSS.escape(colId) + '"] .ag-group-value'); return v ? norm(v.innerText) : ''; };
+  const byIndex = new Map();
+  for (const c of root.querySelectorAll('.ag-cell[col-id="' + CSS.escape(colId) + '"]')) {
+    const r = c.closest('.ag-row');
+    if (r && Number.isFinite(Number(r.getAttribute('row-index')))) byIndex.set(Number(r.getAttribute('row-index')), r);
+  }
+  let level = levelOf(rowEl);
+  const names = [nameOf(rowEl)];
+  for (let i = Number(rowEl.getAttribute('row-index')) - 1; level > 0 && i >= 0; i--) {
+    const r = byIndex.get(i);
+    if (!r) return null;
+    if (levelOf(r) < level) { level = levelOf(r); names.unshift(nameOf(r)); }
+  }
+  if (level > 0 || names.some((n) => !n)) return null;
+  const header = root.querySelector('.ag-header-cell[col-id="' + CSS.escape(colId) + '"]');
+  const headerText = header ? norm((header.querySelector('.ag-header-cell-text') || header).innerText) : null;
+  return { mode: 'path', column: { colId, header: headerText }, value: names.join(' › ') };
+}
+
 // Describes a grid cell, header or filter so it can be found again after sorting and scrolling.
 function gridTarget(el) {
   const root = el.closest('.ag-root-wrapper');
@@ -126,6 +155,7 @@ function gridTarget(el) {
   const rowEl = cell && cell.closest('.ag-row');
   if (!cell || !rowEl) return null;
   const rowIndex = Number(rowEl.getAttribute('row-index'));
+  const treePath = gridTreePath(root, rowEl);
 
   // Choose a key column whose value identifies this row: an ID-like column first, then any other column
   // whose value is unique among the rows on screen. Pinned and centre parts of the row are both searched.
@@ -133,7 +163,8 @@ function gridTarget(el) {
   const candidates = rowCells.filter((c) => KEY_HEADER.test(headerText(headerById(c.getAttribute('col-id'))) || c.getAttribute('col-id')))
     .concat(rowCells.filter((c) => c !== cell), rowCells);
   let row = { mode: 'index', index: rowIndex };
-  for (const c of candidates) {
+  if (treePath) row = treePath;
+  else for (const c of candidates) {
     const colId = c.getAttribute('col-id');
     const value = norm(c.innerText);
     const same = Array.from(root.querySelectorAll('.ag-cell[col-id="' + CSS.escape(colId) + '"]')).filter((x) => norm(x.innerText) === value);
@@ -145,7 +176,10 @@ function gridTarget(el) {
   }
   const link = el.closest('a');
   const button = el.closest('button,[role=button]');
-  const inner = link && cell.contains(link) ? 'a' : button && cell.contains(button) ? 'button' : null;
+  // The recorder sees the click before the grid handles it, so the arrow still shows the old state.
+  const arrow = el.closest('.ag-group-contracted, .ag-group-expanded');
+  const inner = arrow && cell.contains(arrow) ? (arrow.classList.contains('ag-group-contracted') ? 'expand' : 'collapse')
+    : link && cell.contains(link) ? 'a' : button && cell.contains(button) ? 'button' : null;
   const column = columnOf(headerById(cell.getAttribute('col-id')));
   if (!column.colId) column.colId = cell.getAttribute('col-id');
   return { grid, part: 'cell', column, row, inner };
@@ -181,6 +215,14 @@ function send(action, el, value, secret) {
   const grid = gridTarget(el);
   const loc = grid ? null : locatorFor(el);
   const d = loc ? null : describe(el);
+  // Tag the element so the main process can check the generated locator with Playwright,
+  // which is what the runner will use to find it again.
+  if (loc) {
+    try {
+      document.querySelectorAll('[data-ts-rec]').forEach((e) => e.removeAttribute('data-ts-rec'));
+      el.setAttribute('data-ts-rec', '1');
+    } catch (e) { /* the check is best-effort */ }
+  }
   ipcRenderer.send('rec:event', {
     action,
     name: grid ? grid.column.header || grid.column.colId : loc ? loc.name : d.name,

@@ -89,3 +89,53 @@ test('validateSuite checks grid targets', () => {
   assert.match(msg('G step 2'), /column is not set/);
   assert.match(msg('G step 3'), /Test data not found: \{missing\}/);
 });
+
+test('validateSuite ignores disabled steps and flags tests with every step disabled', () => {
+  const data = {
+    blocks: [],
+    tests: [
+      { id: 'T1', steps: [{ action: 'Click', target: '', disabled: true }, { action: 'Verify text appears', value: 'ok' }] },
+      { id: 'T2', steps: [{ action: 'Verify text appears', value: 'ok', disabled: true }] },
+      { id: 'T3', steps: [{ action: 'Save value from text', value: 'Order {order}', disabled: true }, { action: 'Type', target: 'A', value: '{order}' }, { action: 'Verify text appears', value: 'ok' }] }
+    ]
+  };
+  const p = validateSuite(data, []);
+  assert.ok(!p.some((x) => x.where.startsWith('T1') && x.level === 'error'));
+  assert.ok(p.some((x) => x.where === 'T2' && /All steps are disabled/.test(x.message)));
+  assert.ok(p.some((x) => x.where === 'T3 step 2' && /not found/.test(x.message)));
+});
+
+test('grid rows can be matched by part of a value and checked as not in the grid', () => {
+  const g = (action, part) => ({ action, grid: { grid: { label: 'Orders' }, part: part || 'cell', column: { header: '' }, row: { mode: 'match', match: 'contains', column: { header: 'Customer' }, value: 'Jane' } } });
+  assert.equal(describeStep({ ...g('Click'), grid: { ...g('Click').grid, column: { header: 'Status' } } }), 'Click “Status” in the Orders grid, row where Customer contains “Jane”');
+  assert.equal(describeStep(g('Verify element is hidden')), 'Check that the row where Customer contains “Jane” is not in the Orders grid');
+
+  const p = validateSuite({ blocks: [], tests: [{ id: 'T', steps: [g('Verify element is hidden'), g('Verify element is hidden', 'header'), g('Click')] }] }, []);
+  const at = (n) => p.filter((x) => x.where === 'T step ' + n && x.level === 'error').map((x) => x.message);
+  assert.deepEqual(at(1), []);
+  assert.ok(at(2).some((m) => /Only a row/.test(m)));
+  assert.ok(at(3).some((m) => /column is not set/.test(m)));
+});
+
+test('tree rows are found by path and can be expanded or collapsed', () => {
+  const { splitPath } = require('../../src/describe');
+  assert.deepEqual(splitPath('Documents › Work >  Project Alpha / Proposal.docx'), ['Documents', 'Work', 'Project Alpha', 'Proposal.docx']);
+  assert.deepEqual(splitPath('Q1/Q2 report.pdf'), ['Q1/Q2 report.pdf'], 'a slash without spaces is part of the name');
+
+  const tree = (value, extra) => ({ grid: { part: 'cell', column: { header: '' }, row: { mode: 'path', column: { header: 'File Explorer' }, value }, ...extra } });
+  assert.equal(describeStep({ action: 'Click', ...tree('Documents > Work', { inner: 'expand' }) }), 'Expand the row “Documents › Work” in the grid');
+  assert.equal(describeStep({ action: 'Click', ...tree('Documents', { inner: 'collapse' }) }), 'Collapse the row “Documents” in the grid');
+  const created = tree('Documents › Report.pdf');
+  created.grid.column = { header: 'Created' };
+  assert.equal(describeStep({ action: 'Click', ...created }), 'Click “Created” in the grid, row “Documents › Report.pdf”');
+
+  const p = validateSuite({ blocks: [], tests: [{ id: 'T', steps: [
+    { action: 'Click', ...tree('Documents', { inner: 'expand' }) },
+    { action: 'Click', ...tree('', { inner: 'expand' }) },
+    { action: 'Verify element text', value: 'x', ...created }
+  ] }] }, []);
+  const at = (i) => p.filter((x) => x.where === 'T step ' + i && x.level === 'error').map((x) => x.message);
+  assert.deepEqual(at(1), [], 'expanding needs no column');
+  assert.ok(at(2).some((m) => /which tree row/.test(m)));
+  assert.deepEqual(at(3), []);
+});

@@ -17,7 +17,8 @@ function list(v) {
   return (Array.isArray(v) ? v : [v]).flatMap((x) => String(x).split(',')).map((x) => x.trim()).filter(Boolean);
 }
 
-// options.ids, options.tags (any match), options.excludeTags, options.approvedOnly
+// options.ids, options.tags (any match), options.excludeTags, options.approvedOnly.
+// Disabled tests are left out unless they are asked for by id.
 function selectTests(tests, options = {}) {
   const ids = list(options.ids);
   const tags = list(options.tags).map(normTag);
@@ -25,6 +26,7 @@ function selectTests(tests, options = {}) {
   return (tests || []).filter((t) => {
     const testTags = (t.tags || []).map(normTag);
     if (ids.length && !ids.includes(t.id)) return false;
+    if (t.disabled && !ids.includes(t.id)) return false;
     if (tags.length && !tags.some((x) => testTags.includes(x))) return false;
     if (exclude.some((x) => testTags.includes(x))) return false;
     if (options.approvedOnly && t.approval !== 'Approved') return false;

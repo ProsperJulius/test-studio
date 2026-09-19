@@ -9,10 +9,17 @@ const runner = require('./src/runner');
 const report = require('./src/report');
 const reporters = require('./src/reporters');
 const suite = require('./src/suite');
+const testsYaml = require('./src/tests-yaml');
 const cli = require('./src/cli');
 const { selectTests } = require('./src/select');
 const { resolveEnvironment } = require('./src/environments');
 const { validateSuite } = require('./src/validate');
+
+// Playwright attaches to the run windows over CDP to match locators. Port 0 lets Chromium
+// pick a free one; it writes the choice to DevToolsActivePort, which src/pw-session.js reads.
+app.commandLine.appendSwitch('remote-debugging-port', '0');
+
+app.on('will-quit', () => { require('./src/pw-session').close(); });
 
 const CLI_INDEX = process.argv.indexOf('--ts-cli');
 
@@ -211,6 +218,33 @@ function registerIpc() {
     if (canceled || !filePaths[0]) return null;
     let counts;
     store.update((d) => { counts = suite.importSuite(d, filePaths[0]); });
+    return { data: store.get(), counts };
+  });
+
+  ipcMain.handle('tests:export-yaml', async (e, ids) => {
+    const { text, warnings } = testsYaml.exportTests(store.get(), ids || []);
+    const { canceled, filePath } = await dialog.showSaveDialog(studio, {
+      title: 'Export tests as YAML',
+      defaultPath: (ids.length === 1 ? ids[0] : 'tests') + '.yml',
+      filters: [{ name: 'YAML', extensions: ['yml', 'yaml'] }]
+    });
+    if (canceled || !filePath) return null;
+    fs.writeFileSync(filePath, text);
+    return { file: filePath, warnings };
+  });
+
+  ipcMain.handle('tests:import-yaml', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(studio, {
+      title: 'Import tests from YAML',
+      buttonLabel: 'Import',
+      filters: [{ name: 'YAML', extensions: ['yml', 'yaml'] }],
+      properties: ['openFile']
+    });
+    if (canceled || !filePaths[0]) return null;
+    // Parse before touching the store, so a broken file changes nothing.
+    const parsed = testsYaml.parseTests(fs.readFileSync(filePaths[0], 'utf8'));
+    let counts;
+    store.update((d) => { counts = testsYaml.importTests(d, parsed); });
     return { data: store.get(), counts };
   });
 

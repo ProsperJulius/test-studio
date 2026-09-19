@@ -28,6 +28,8 @@ jobs:
       - run: xvfb-run --auto-servernum npm run test:e2e
       # Locator engine matches real Playwright, and the recorder produces unique locators.
       - run: xvfb-run --auto-servernum npm run test:parity
+      # The AST -> Playwright mapping the runner uses to find elements.
+      - run: xvfb-run --auto-servernum npm run test:pw-parity
       - run: xvfb-run --auto-servernum npm run test:recorder
 
   # Regression run against your application. Export your suite from Settings into ./regression,

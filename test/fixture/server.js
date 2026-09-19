@@ -5,6 +5,7 @@ const path = require('path');
 
 const ROOT = path.join(__dirname, 'site');
 const AG_GRID = path.join(__dirname, '..', '..', 'node_modules', 'ag-grid-community');
+const AG_GRID_36 = path.join(__dirname, '..', '..', 'node_modules', 'ag-grid-community-36');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css' };
 
 function start(port = 0) {
@@ -23,6 +24,10 @@ function start(port = 0) {
     if (rel.startsWith('/vendor/ag-grid/')) {
       root = AG_GRID;
       rel = rel.slice('/vendor/ag-grid'.length);
+    }
+    if (rel.startsWith('/vendor/ag-grid-36/')) {
+      root = AG_GRID_36;
+      rel = rel.slice('/vendor/ag-grid-36'.length);
     }
     const file = path.join(root, path.normalize(rel));
     if (!file.startsWith(root) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {

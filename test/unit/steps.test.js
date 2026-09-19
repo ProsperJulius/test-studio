@@ -33,3 +33,13 @@ test('locatorsFor uses recorded locators unless the target was renamed', () => {
   assert.equal(locatorsFor({ target: 'Save', recordedTarget: 'Save', locators: loc }), loc);
   assert.deepEqual(locatorsFor({ target: 'Submit', recordedTarget: 'Save', locators: loc }), { label: 'Submit', text: 'Submit', placeholder: 'Submit' });
 });
+
+test('expandSteps leaves out disabled steps, inside blocks too', () => {
+  const blocks = [{ id: 'b1', name: 'Log in', steps: [{ action: 'Click', target: 'A' }, { action: 'Click', target: 'B', disabled: true }] }];
+  const out = expandSteps([
+    { action: 'Click', target: 'Off', disabled: true },
+    { action: 'Use block', value: 'b1' },
+    { action: 'Use block', value: 'b1', disabled: true }
+  ], blocks);
+  assert.deepEqual(out.map((s) => s.target), ['A']);
+});
