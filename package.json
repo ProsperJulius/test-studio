@@ -11,6 +11,7 @@
     "test:parity": "node test/e2e/locators-parity.js",
     "test:pw-parity": "node test/e2e/pw-locator-parity.js",
     "test:recorder": "node test/e2e/recorder-locators.js",
+    "test:recorder-tree": "node test/e2e/recorder-tree.js",
     "test:live-aggrid": "node test/e2e/live-ag-grid.js",
     "fixture": "node test/fixture/server.js",
     "regression": "node bin/test-studio.js",
@@ -26,6 +27,7 @@
   "devDependencies": {
     "ag-grid-community": "32.3.3",
     "ag-grid-community-36": "npm:ag-grid-community@^36.2.0",
+    "ag-grid-enterprise": "^36.2.0",
     "electron": "^37.0.0",
     "electron-builder": "^26.0.0"
   },

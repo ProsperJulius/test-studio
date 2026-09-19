@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Departments – Server-side tree data</title>
+  <style>
+    body { font: 14px system-ui, sans-serif; margin: 16px; }
+  </style>
+</head>
+<body>
+  <h1>Departments</h1>
+  <div id="org" style="height: 420px; width: 700px;"></div>
+
+  <script src="/vendor/ag-grid-enterprise/dist/ag-grid-enterprise.min.js"></script>
+  <script src="/vendor/ag-grid-license.js"></script>
+  <script>
+    // Each folder's children come from a "server" after a delay, so loading rows are shown on every expand.
+    const tree = {
+      Engineering: { Platform: { 'Ada Lovelace': 'Staff engineer', 'Alan Turing': 'Principal engineer' }, Web: { 'Grace Hopper': 'Lead' } },
+      Finance: { Payroll: { 'Jane Smith': 'Manager', 'Jane Smithers': 'Analyst' }, Audit: {} },
+      Sales: { EMEA: { 'Ravi Patel': 'Account executive' } }
+    };
+    const childrenOf = (keys) => keys.reduce((node, k) => (node && typeof node === 'object' ? node[k] : undefined), tree);
+
+    const datasource = {
+      getRows(params) {
+        const keys = params.request.groupKeys;
+        setTimeout(() => {
+          const node = childrenOf(keys);
+          if (!node || typeof node !== 'object') { params.fail(); return; }
+          const rows = Object.entries(node).map(([name, value]) => ({
+            id: keys.concat(name).join('/'),
+            name,
+            group: typeof value === 'object',
+            role: typeof value === 'object' ? '' : value
+          }));
+          params.success({ rowData: rows, rowCount: rows.length });
+        }, 400);
+      }
+    };
+
+    const api = agGrid.createGrid(document.getElementById('org'), {
+      rowModelType: 'serverSide',
+      treeData: true,
+      isServerSideGroup: (d) => d.group,
+      getServerSideGroupKey: (d) => d.name,
+      getRowId: (p) => p.data.id,
+      autoGroupColumnDef: { headerName: 'Organisation', field: 'name', minWidth: 300 },
+      columnDefs: [{ headerName: 'Role', field: 'role', width: 200 }],
+      serverSideDatasource: datasource
+    });
+    window.gridApi = api;
+  </script>
+</body>
+</html>

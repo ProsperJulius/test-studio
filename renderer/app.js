@@ -506,7 +506,7 @@ function gridPanelHtml(st, i) {
         : f('row.column.header', 'Where column', 'For example Name')
           + sel('row.match', 'Match', [['equals', 'Is exactly'], ['contains', 'Contains']])
           + f('row.value', 'Value', r.match === 'contains' ? 'Part of the name, or {variable}' : 'Value or {variable}')}
-      ${isCell && !hideCheck ? sel('inner', 'Click on', [['', 'The cell'], ['button', 'A button in the cell'], ['a', 'A link in the cell'], ['expand', 'Expand the row (tree)'], ['collapse', 'Collapse the row (tree)']]) : ''}
+      ${isCell && !hideCheck ? sel('inner', 'Click on', [['', 'The cell'], ['button', 'A button in the cell'], ['a', 'A link in the cell'], ['expand', 'Expand the row (tree)'], ['collapse', 'Collapse the row (tree)'], ['select', 'Select the row (checkbox)'], ['deselect', 'Deselect the row (checkbox)']]) : ''}
     </div>
     <div class="actions">
       ${hideCheck ? '<span class="muted">Passes when no row matches after searching the whole grid. The column is not used.</span>'

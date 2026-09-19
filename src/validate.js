@@ -51,7 +51,8 @@ function validateSuite(data, variables, options = {}) {
         const g = s.grid;
         // Checking that a row is not in the grid needs only the row, not a column.
         if (s.action === 'Verify element is hidden' && (g.part || 'cell') !== 'cell') add('error', at, 'Only a row can be checked as not in the grid. Set the grid part to Cell.');
-        const expands = g.inner === 'expand' || g.inner === 'collapse';
+        // Expanding and selecting act on the row, so they need no column.
+        const expands = ['expand', 'collapse', 'select', 'deselect'].includes(g.inner);
         if (s.action !== 'Verify element is hidden' && !expands && (!g.column || !(g.column.colId || g.column.header))) add('error', at, 'The grid column is not set.');
         if ((g.part || 'cell') === 'cell') {
           const r = g.row || {};

@@ -275,6 +275,11 @@ function studioGrid(g, rowValue, action, value, scanId) {
     if (hidden && !root.querySelector('.ag-row, .ag-overlay-no-rows-wrapper, .ag-overlay-no-rows-center')) {
       return { ok: false, reason: gridName + ' has not finished loading.' };
     }
+    // Rows still coming from a server (for example the children of a folder just opened) are never
+    // reported as missing: wait for them instead.
+    const loading = () => root.querySelector('.ag-row-loading, .ag-row .ag-loading, .ag-skeleton-container');
+    // Checks do not change the grid, so only these actions open collapsed folders on a path.
+    const opensFolders = ['Click', 'Double-click', 'Right-click', 'Type', 'Press Enter'].includes(action);
     const rowSel = () => st.rowId != null ? '.ag-row[row-id="' + esc(st.rowId) + '"]' : '.ag-row[row-index="' + esc(st.rowIndex) + '"]';
     if (st.rowId == null && st.rowIndex == null || !root.querySelector(rowSel())) {
       // The row that was found has gone, so search the whole grid again.
@@ -317,9 +322,13 @@ function studioGrid(g, rowValue, action, value, scanId) {
           .map((c) => ({ cell: c, row: c.closest('.ag-row') }))
           .filter((x) => x.row && Number.isFinite(Number(x.row.getAttribute('row-index'))))
           .sort((a, b) => Number(a.row.getAttribute('row-index')) - Number(b.row.getAttribute('row-index')));
+        // Rows that are loading, or whose name has not been drawn yet, cannot be placed in the tree.
+        if (loading() || rows.some((x) => !norm(x.cell.innerText))) return { ok: false, reason: gridName + ' is still loading rows.' };
+        // Rows are read strictly in order, so a row's folders are always read before it.
         for (const { cell: c, row: rowEl } of rows) {
           const index = Number(rowEl.getAttribute('row-index'));
           if (index <= p.last) continue;
+          if (index !== p.last + 1) break;
           p.last = index;
           const level = Number((rowEl.className.match(/ag-row-level-(\d+)/) || [0, 0])[1]);
           p.stack.length = Math.min(p.stack.length, level);
@@ -330,13 +339,31 @@ function studioGrid(g, rowValue, action, value, scanId) {
           if (path.length === parts.length) { row = rowEl; st.path = null; break; }
           const collapsed = rowEl.getAttribute('aria-expanded') === 'false' || c.getAttribute('aria-expanded') === 'false';
           const arrow = collapsed && Array.from(c.querySelectorAll('.ag-group-contracted')).find((a) => !a.classList.contains('ag-hidden'));
-          if (arrow && !hidden) {
+          if (arrow && opensFolders) {
             arrow.click();
             st.path = null;
             st.v = 'start';
             st.vDone = false;
             return { ok: false, scrolled: true, reason: 'Could not open “' + path[path.length - 1] + '” in ' + gridName + '.' };
           }
+          if (collapsed && !hidden) {
+            st.path = null;
+            return { ok: false, reason: '“' + parts[parts.length - 1] + '” is inside the collapsed folder “' + path.join(' › ') + '”.' };
+          }
+        }
+        // Before scrolling on, every row showing in the grid must have been read. The grid may still be
+        // drawing the rows at the new scroll position; rows it keeps off screen (such as the focused row) do not count.
+        const box = vp && vp.getBoundingClientRect();
+        const inView = (el) => { const b = el.getBoundingClientRect(); return b.height > 0 && (!box || (b.bottom > box.top && b.top < box.bottom)); };
+        const shown = rows.filter((x) => inView(x.row));
+        if (!row && (!shown.length || shown.some((x) => Number(x.row.getAttribute('row-index')) > p.last))) {
+          // Give the grid time to draw; if a gap stays, scroll back a little in case a page was skipped.
+          p.gapWait = (p.gapWait || 0) + 1;
+          if (p.gapWait > 8 && vp) {
+            vp.scrollTop = Math.max(0, vp.scrollTop - vp.clientHeight / 2);
+            p.gapWait = 0;
+          }
+          return { ok: false, scrolled: true, reason: describeRow + ' was not found in ' + gridName + '.' };
         }
         if (!row) {
           const where = p.deepest ? '“' + parts[p.deepest] + '” was not found under “' + parts.slice(0, p.deepest).join(' › ') + '”' : '“' + parts[0] + '” was not found';
@@ -351,6 +378,7 @@ function studioGrid(g, rowValue, action, value, scanId) {
         if (!key && !keyCells.length) return scan('h', 'Column “' + colName(r.column) + '” was not found in ' + gridName + '.');
         const wanted = norm(rowValue).toLowerCase();
         const match = keyCells.find((c) => (contains ? norm(c.innerText).toLowerCase().includes(wanted) : norm(c.innerText) === norm(rowValue)));
+        if (!match && loading()) return { ok: false, reason: gridName + ' is still loading rows.' };
         if (!match) return missing(scan('v', describeRow + ' was not found in ' + gridName + '.'));
         row = match.closest('.ag-row');
       }
@@ -363,15 +391,23 @@ function studioGrid(g, rowValue, action, value, scanId) {
 
     const h = headerFor(column);
     let colId = h ? h.getAttribute('col-id') : column.colId;
-    if (!colId && (g.inner === 'expand' || g.inner === 'collapse')) {
-      // Expanding needs no column: use the column that shows the tree.
+    if (!colId && ['expand', 'collapse', 'select', 'deselect'].includes(g.inner)) {
+      // Expanding and selecting need no column: use the column that shows the tree.
       const treeCell = root.querySelector(rowSel() + ' .ag-group-value');
       colId = treeCell && treeCell.closest('.ag-cell').getAttribute('col-id');
     }
     const cell = colId && root.querySelector(rowSel() + ' .ag-cell[col-id="' + esc(colId) + '"]');
     if (!cell) return scan('h', 'Column “' + colName(column) + '” was not found in ' + gridName + '.');
     el = cell;
-    if (g.inner === 'expand' || g.inner === 'collapse') {
+    if (g.inner === 'select' || g.inner === 'deselect') {
+      const boxes = Array.from(root.querySelectorAll(rowSel() + ' .ag-group-checkbox, ' + rowSel() + ' .ag-selection-checkbox'));
+      const box = boxes.find((b) => !b.classList.contains('ag-invisible') && !b.classList.contains('ag-hidden') && b.getBoundingClientRect().width);
+      if (!box) return { ok: false, reason: describeRow + ' has no selection checkbox.' };
+      const input = box.querySelector('input');
+      const selected = input ? input.checked : cell.closest('.ag-row').getAttribute('aria-selected') === 'true';
+      if (selected === (g.inner === 'select')) return { ok: true, used: 'grid' };
+      el = box.querySelector('.ag-checkbox-input-wrapper') || box;
+    } else if (g.inner === 'expand' || g.inner === 'collapse') {
       const rowEl = cell.closest('.ag-row');
       const open = rowEl.getAttribute('aria-expanded') || cell.getAttribute('aria-expanded');
       if ((g.inner === 'expand' && open === 'true') || (g.inner === 'collapse' && open === 'false')) return { ok: true, used: 'grid' };
@@ -429,6 +465,17 @@ function studioGrid(g, rowValue, action, value, scanId) {
       left: box.left + vp.clientLeft,
       right: box.left + vp.clientLeft + vp.clientWidth
     };
+    // Folder rows that stick to the top (or totals to the bottom) while scrolling cover the rows under them.
+    if (!el.closest('[class*="sticky"]')) {
+      for (const s of root.querySelectorAll('.ag-grid-sticky-top-rows-container, .ag-sticky-top-container')) {
+        const r = s.getBoundingClientRect();
+        if (r.height && !s.classList.contains('ag-hidden')) v.top = Math.max(v.top, r.bottom);
+      }
+      for (const s of root.querySelectorAll('.ag-grid-sticky-bottom-rows-container, .ag-sticky-bottom-container')) {
+        const r = s.getBoundingClientRect();
+        if (r.height && !s.classList.contains('ag-hidden')) v.bottom = Math.min(v.bottom, r.top);
+      }
+    }
     if (rect.top < v.top || rect.bottom > v.bottom) {
       vp.scrollTop += rect.top < v.top ? rect.top - v.top - 4 : rect.bottom - v.bottom + 4;
       return { ok: false, scrolled: true, reason: 'Could not scroll to the “' + colName(column) + '” cell.' };

@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Files – Tree data</title>
+  <style>
+    body { font: 14px system-ui, sans-serif; margin: 16px; }
+  </style>
+</head>
+<body>
+  <h1>Files</h1>
+  <div id="files" style="height: 420px; width: 760px;"></div>
+  <p id="selection">Selected: none</p>
+
+  <script src="/vendor/ag-grid-enterprise/dist/ag-grid-enterprise.min.js"></script>
+  <script src="/vendor/ag-grid-license.js"></script>
+  <script>
+    // A file explorer with the same names in different folders, and a large Archive branch so
+    // reaching its end needs scrolling and the folders above scroll out of view.
+    const files = [
+      ['Desktop/ProjectAlpha/Proposal.docx', '2023-07-10', '2023-08-01', 500],
+      ['Desktop/ProjectAlpha/Timeline.xlsx', '2023-07-12', '2023-08-03', 1024],
+      ['Desktop/ToDoList.txt', '2023-08-05', '2023-08-10', 50],
+      ['Documents/Work/ProjectAlpha/Proposal.docx', '2023-07-10', '2023-08-01', 500],
+      ['Documents/Work/ProjectAlpha/Timeline.xlsx', '2023-07-12', '2023-08-03', 1024],
+      ['Documents/Work/ProjectBeta/Report.pdf', '2023-06-22', '2023-07-15', 1000],
+      ['Documents/Personal/Taxes/2022.pdf', '2023-04-10', '2023-04-10', 1000],
+      ['Pictures/Family/Birthday2022.jpg', '2022-12-15', '2022-12-15', 2048],
+      ['Pictures/Vacation2019/Beach.jpg', '2019-07-10', '2019-07-10', 3072],
+      ['Videos/Family/Christmas2021.mov', '2021-12-25', '2021-12-25', 40960],
+      ['Videos/Vacation2019/Beach.mov', '2019-07-10', '2019-07-10', 51200]
+    ];
+    for (let y = 2020; y <= 2024; y++) {
+      for (let m = 1; m <= 12; m++) {
+        const month = 'Month ' + String(m).padStart(2, '0');
+        for (let k = 1; k <= 4; k++) {
+          const day = String(k).padStart(2, '0');
+          files.push(['Archive/' + y + '/' + month + '/report-' + k + '.pdf', y + '-' + String(m).padStart(2, '0') + '-' + day, y + '-' + String(m).padStart(2, '0') + '-' + day, 100 * k]);
+        }
+      }
+    }
+    const rowData = files.map(([p, created, modified, size], i) => ({ id: 'f' + i, path: p.split('/'), created, modified, size }));
+
+    const api = agGrid.createGrid(document.getElementById('files'), {
+      rowData,
+      treeData: true,
+      getDataPath: (d) => d.path,
+      getRowId: (p) => p.data.id,
+      // Documents starts collapsed; everything else starts open.
+      isGroupOpenByDefault: (p) => p.key !== 'Documents',
+      rowSelection: { mode: 'multiRow', groupSelects: 'descendants', checkboxLocation: 'autoGroupColumn', headerCheckbox: false },
+      autoGroupColumnDef: { headerName: 'File Explorer', minWidth: 320 },
+      defaultColDef: { width: 130 },
+      onSelectionChanged: (e) => {
+        const names = e.api.getSelectedNodes().filter((n) => n.data).map((n) => n.data.path[n.data.path.length - 1]);
+        document.getElementById('selection').textContent = 'Selected: ' + (names.join(', ') || 'none');
+      },
+      columnDefs: [
+        { headerName: 'Created', field: 'created' },
+        { headerName: 'Modified', field: 'modified' },
+        { headerName: 'Size', field: 'size', aggFunc: 'sum' }
+      ]
+    });
+    window.gridApi = api;
+  </script>
+</body>
+</html>

@@ -139,3 +139,11 @@ test('tree rows are found by path and can be expanded or collapsed', () => {
   assert.ok(at(2).some((m) => /which tree row/.test(m)));
   assert.deepEqual(at(3), []);
 });
+
+test('tree rows can be selected and deselected with their checkbox', () => {
+  const tree = (inner) => ({ action: 'Click', grid: { part: 'cell', column: { header: '' }, row: { mode: 'path', column: { header: 'File Explorer' }, value: 'Pictures › Family' }, inner } });
+  assert.equal(describeStep(tree('select')), 'Select the row “Pictures › Family” in the grid');
+  assert.equal(describeStep(tree('deselect')), 'Deselect the row “Pictures › Family” in the grid');
+  const p = validateSuite({ blocks: [], tests: [{ id: 'T', steps: [tree('select'), tree('deselect'), { action: 'Verify text appears', value: 'x' }] }] }, []);
+  assert.deepEqual(p.filter((x) => x.level === 'error'), [], 'selecting needs no column');
+});

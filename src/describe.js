@@ -82,8 +82,9 @@
     if (step.grid && metaFor(step.action).grid) {
       const where = describeGridTarget(step.grid);
       const inner = step.grid.inner;
-      if ((inner === 'expand' || inner === 'collapse') && (step.grid.part || 'cell') === 'cell') {
-        return (inner === 'expand' ? 'Expand the ' : 'Collapse the ') + describeGridRow(step.grid) + ' in ' + gridNameOf(step.grid);
+      const verbs = { expand: 'Expand the ', collapse: 'Collapse the ', select: 'Select the ', deselect: 'Deselect the ' };
+      if (verbs[inner] && (step.grid.part || 'cell') === 'cell') {
+        return verbs[inner] + describeGridRow(step.grid) + ' in ' + gridNameOf(step.grid);
       }
       switch (step.action) {
         case 'Click': return 'Click ' + where;

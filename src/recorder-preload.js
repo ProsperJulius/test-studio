@@ -102,8 +102,36 @@ function gridLabel(root) {
 
 const KEY_HEADER = /\bid\b|number|\bno\b|reference|\bref\b|code|\bkey\b/i;
 
+// Tree data: rows seen while recording, by row index, so a row's folders are known even after they have
+// scrolled out of view. Row indexes change when folders open or close, the grid is sorted, or the number of
+// rows changes, so the cache is cleared then.
+const treeCaches = new WeakMap();
+const levelOf = (r) => Number((r.className.match(/ag-row-level-(\d+)/) || [0, 0])[1]);
+
+function treeCache(root) {
+  const counter = root.querySelector('[aria-rowcount]');
+  const count = counter ? counter.getAttribute('aria-rowcount') : null;
+  let cache = treeCaches.get(root);
+  if (!cache || cache.count !== count) {
+    cache = { count, rows: new Map() };
+    treeCaches.set(root, cache);
+  }
+  return cache.rows;
+}
+
+function rememberTree(root) {
+  const values = root.querySelectorAll('.ag-row .ag-group-value');
+  if (!values.length) return;
+  const rows = treeCache(root);
+  for (const v of values) {
+    const r = v.closest('.ag-row');
+    const index = Number(r.getAttribute('row-index'));
+    if (Number.isFinite(index) && norm(v.innerText)) rows.set(index, { level: levelOf(r), name: norm(v.innerText) });
+  }
+}
+
 // For tree data, the row's path such as “Documents › Work › Report.pdf”, built from the folder rows
-// above it. Returns null when the grid is not a tree or a folder above has scrolled out of the page.
+// above it. Returns null when the grid is not a tree or a folder above it was never seen.
 function gridTreePath(root, rowEl) {
   // Older grids split a row into pinned and centre parts, so look in every part with this row index.
   const valueEl = root.querySelector('.ag-row[row-index="' + CSS.escape(rowEl.getAttribute('row-index') || '') + '"] .ag-group-value');
@@ -111,19 +139,25 @@ function gridTreePath(root, rowEl) {
   if (!treeCell) return null;
   rowEl = treeCell.closest('.ag-row');
   const colId = treeCell.getAttribute('col-id');
-  const levelOf = (r) => Number((r.className.match(/ag-row-level-(\d+)/) || [0, 0])[1]);
-  const nameOf = (r) => { const v = r.querySelector('.ag-cell[col-id="' + CSS.escape(colId) + '"] .ag-group-value'); return v ? norm(v.innerText) : ''; };
-  const byIndex = new Map();
-  for (const c of root.querySelectorAll('.ag-cell[col-id="' + CSS.escape(colId) + '"]')) {
-    const r = c.closest('.ag-row');
-    if (r && Number.isFinite(Number(r.getAttribute('row-index')))) byIndex.set(Number(r.getAttribute('row-index')), r);
-  }
+  rememberTree(root);
+  const known = treeCache(root);
+  // Folder rows stuck to the top while scrolling are the folders of the rows under them.
+  const sticky = Array.from(root.querySelectorAll('[class*="sticky"] .ag-row'))
+    .map((r) => ({ index: Number(r.getAttribute('row-index')), level: levelOf(r), name: norm((r.querySelector('.ag-group-value') || {}).innerText) }))
+    .filter((r) => Number.isFinite(r.index) && r.name);
+
   let level = levelOf(rowEl);
-  const names = [nameOf(rowEl)];
+  const names = [norm(valueEl.innerText)];
   for (let i = Number(rowEl.getAttribute('row-index')) - 1; level > 0 && i >= 0; i--) {
-    const r = byIndex.get(i);
-    if (!r) return null;
-    if (levelOf(r) < level) { level = levelOf(r); names.unshift(nameOf(r)); }
+    let r = known.get(i);
+    if (!r) {
+      // A gap above the visible rows: continue from the stuck folder row one level up, if there is one.
+      const up = sticky.filter((x) => x.index < i && x.level < level).sort((a, b) => b.level - a.level)[0];
+      if (!up) return null;
+      i = up.index;
+      r = up;
+    }
+    if (r.level < level) { level = r.level; names.unshift(r.name); }
   }
   if (level > 0 || names.some((n) => !n)) return null;
   const header = root.querySelector('.ag-header-cell[col-id="' + CSS.escape(colId) + '"]');
@@ -149,6 +183,7 @@ function gridTarget(el) {
   if (header) {
     if (el.closest('.ag-header-cell-resize, .ag-header-select-all')) return null;
     const part = el.closest('.ag-header-cell-menu-button') ? 'header-menu' : el.closest('.ag-header-cell-filter-button') ? 'header-filter' : 'header';
+    treeCaches.delete(root); // sorting or filtering moves rows
     return { grid, part, column: columnOf(header) };
   }
   const cell = el.closest('.ag-cell');
@@ -178,8 +213,14 @@ function gridTarget(el) {
   const button = el.closest('button,[role=button]');
   // The recorder sees the click before the grid handles it, so the arrow still shows the old state.
   const arrow = el.closest('.ag-group-contracted, .ag-group-expanded');
-  const inner = arrow && cell.contains(arrow) ? (arrow.classList.contains('ag-group-contracted') ? 'expand' : 'collapse')
+  const box = el.closest('.ag-group-checkbox, .ag-selection-checkbox');
+  const boxInput = box && box.querySelector('input');
+  // A click on the checkbox input itself has already flipped it by the time the recorder sees the click.
+  const wasChecked = boxInput ? (el === boxInput ? !boxInput.checked : boxInput.checked) : false;
+  const inner = box && cell.contains(box) ? (wasChecked ? 'deselect' : 'select')
+    : arrow && cell.contains(arrow) ? (arrow.classList.contains('ag-group-contracted') ? 'expand' : 'collapse')
     : link && cell.contains(link) ? 'a' : button && cell.contains(button) ? 'button' : null;
+  if (inner === 'expand' || inner === 'collapse') treeCaches.delete(root); // rows below move
   const column = columnOf(headerById(cell.getAttribute('col-id')));
   if (!column.colId) column.colId = cell.getAttribute('col-id');
   return { grid, part: 'cell', column, row, inner };
@@ -325,6 +366,23 @@ if (document.documentElement) watchNotices();
 else window.addEventListener('DOMContentLoaded', watchNotices);
 
 // ---------- Listeners ----------
+// Remember tree rows as grids scroll, so a row's folders are known after they scroll out of view.
+let treeScrollPending = false;
+document.addEventListener(
+  'scroll',
+  (e) => {
+    const root = e.target instanceof Element ? e.target.closest('.ag-root-wrapper') : null;
+    if (!root || treeScrollPending) return;
+    treeScrollPending = true;
+    // The grid draws the newly scrolled rows shortly after the scroll event.
+    setTimeout(() => {
+      treeScrollPending = false;
+      rememberTree(root);
+    }, 150);
+  },
+  true
+);
+
 document.addEventListener(
   'click',
   (e) => {

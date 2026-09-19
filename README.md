@@ -80,11 +80,19 @@ Tests recorded before locators were added keep working as before. Open a step an
 Clicks, double-clicks and right-clicks on [AG Grid](https://www.ag-grid.com/) cells and headers are recorded by **column and row**, not by position on the page:
 
 - **Cells** are found by a key value, for example *Double-click “Notes” in the Orders grid, row where Order ID is “1250”*. The recorder picks an ID-like column (Order ID, Number, Reference, Code) whose value is unique; otherwise it uses the row position. The value can be test data or a saved value: `{orderId}`. In the step editor you can choose **Contains** instead of **Is exactly**, so `jane` finds *Jane Smith (Manager)*.
-- **Tree data** (for example a file explorer) is recorded by **path**: *Click “Created” in the grid, row “Documents › Work › ProjectAlpha › Proposal.docx”*. The same name in different folders is told apart, and collapsed folders on the path are opened while the test runs. Clicking a row's arrow is recorded as **Expand the row** or **Collapse the row**; these do nothing if the row is already that way, so they are safe to repeat.
+- **Tree data** (for example a file explorer) is recorded by **path**: *Click “Created” in the grid, row “Documents › Work › ProjectAlpha › Proposal.docx”*. The same name in different folders is told apart, and collapsed folders on the path are opened while the test runs. Clicking a row's arrow is recorded as **Expand the row** or **Collapse the row**, and clicking its selection checkbox as **Select the row** or **Deselect the row**; these do nothing if the row is already that way, so they are safe to repeat. The path is recorded even when the folders above have scrolled out of view.
 - **Headers:** clicking the header text (sorts), the column menu button, the filter button, or the filter box under the header.
 - **Buttons and links inside cells** (for example an *Edit* button that opens a form) are recorded as such.
 - **Editing:** double-click the cell, type, and press Enter. The Type and Press Enter steps are tied to the same cell. A Type step on a cell that is not being edited opens it with a double-click by itself.
-- **Checking a row is not there:** *Verify element is hidden* on a grid row passes only after the whole grid has been searched. It does not open collapsed tree folders, so a row inside a collapsed folder counts as not shown.
+- **Checking a row is not there:** *Verify element is hidden* on a grid row passes only after the whole grid has been searched and no rows are still loading. It does not open collapsed tree folders, so a row inside a collapsed folder counts as not shown.
+
+### Tree data (AG Grid Enterprise)
+
+- **Actions open folders, checks do not.** Click, Double-click, Right-click, Type and Press Enter open collapsed folders on the path. A check (*Verify …*) leaves the grid as it is and fails with *“Report.pdf” is inside the collapsed folder “Documents”*, so a test notices when a folder that should be open is closed. Add an *Expand the row* step first if the check should open it.
+- **Server-side tree data** (children loaded when a folder opens) is supported: loading rows are waited for, and a row is only reported as missing once they have loaded.
+- **Sticky folder rows** that stay at the top while scrolling are taken into account, so rows under them are scrolled clear before they are clicked.
+- **Custom tree cells:** the row name is read from AG Grid's group cell (`.ag-group-value`). If your application replaces the whole tree cell with its own renderer, paths still use the cell's text, but Expand, Collapse, Select and Deselect need AG Grid's own arrows and checkbox.
+- **Licence:** Test Studio does not need an AG Grid licence to test your application. Its own tree tests load AG Grid Enterprise from `node_modules`; set `AG_GRID_LICENSE_KEY` to remove the watermark (in CI, as the repository secret of the same name).
 
 When running, the grid is scrolled to find rows and columns that are not on screen, so tests keep working after sorting, filtering or new data. Grid and popup interactions use real mouse input. AG Grid's popups (column menus, filters, context menus, dropdown editors) and your own dialogs are recorded like any other page element.
 
@@ -151,7 +159,7 @@ npm run test:recorder # records clicks and typing and checks the generated locat
 npm run fixture     # starts the fixture app on http://127.0.0.1:4173 for manual recording
 ```
 
-The end-to-end suite covers every check type, reusable blocks, secret test data, retries and flaky detection, expected failures, reports, run comparison, AG Grid sorting, scrolling, editing, header filters and cell buttons, and saving values from toasts, including sharing them between tests. The fixture's orders grid is at `/orders.html` (AG Grid 32) and `/orders-v36.html` (AG Grid 36, with pinned columns). Tree data needs AG Grid Enterprise, which this project does not include, so `npm run test:live-aggrid` checks it against AG Grid's public File Explorer example instead; it needs internet access and is not part of `test:e2e`.
+The end-to-end suite covers every check type, reusable blocks, secret test data, retries and flaky detection, expected failures, reports, run comparison, AG Grid sorting, scrolling, editing, header filters and cell buttons, and saving values from toasts, including sharing them between tests. The fixture's orders grid is at `/orders.html` (AG Grid 32) and `/orders-v36.html` (AG Grid 36, with pinned columns). Tree data pages use AG Grid Enterprise (a development dependency): `/tree.html` (client-side, sticky folders, row selection, a large Archive branch) and `/tree-server.html` (children loaded from a server on expand). They run without a licence key, with a watermark. `npm run test:recorder-tree` records clicks on the tree page, and `npm run test:live-aggrid` also checks AG Grid's public File Explorer example (needs internet access; not part of `test:e2e`).
 
 ## How it works
 

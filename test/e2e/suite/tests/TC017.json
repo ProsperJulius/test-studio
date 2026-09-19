@@ -1,0 +1,54 @@
+{
+  "id": "TC017",
+  "title": "Expected failure: a check does not open a collapsed folder",
+  "tags": [
+    "grid",
+    "tree"
+  ],
+  "priority": "P2",
+  "requirement": "",
+  "approval": "Approved",
+  "startUrl": "/tree.html",
+  "steps": [
+    {
+      "id": "s17-27",
+      "action": "Open page",
+      "target": "Files",
+      "recordedTarget": "",
+      "value": "/tree.html",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s17-28",
+      "action": "Verify element text",
+      "target": "Created",
+      "recordedTarget": "",
+      "value": "2023-07-10",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": ""
+        },
+        "part": "cell",
+        "column": {
+          "colId": "created",
+          "header": "Created"
+        },
+        "row": {
+          "mode": "path",
+          "column": {
+            "colId": "",
+            "header": "File Explorer"
+          },
+          "value": "Documents › Work › ProjectAlpha › Proposal.docx"
+        },
+        "inner": null
+      }
+    }
+  ]
+}

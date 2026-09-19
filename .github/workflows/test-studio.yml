@@ -16,6 +16,9 @@ jobs:
   # Tests for Test Studio itself: unit tests, then the runner against the fixture app.
   self-test:
     runs-on: ubuntu-latest
+    # Optional: the tree data pages use AG Grid Enterprise. Without a key they still run, with a watermark.
+    env:
+      AG_GRID_LICENSE_KEY: ${{ secrets.AG_GRID_LICENSE_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -31,6 +34,8 @@ jobs:
       # The AST -> Playwright mapping the runner uses to find elements.
       - run: xvfb-run --auto-servernum npm run test:pw-parity
       - run: xvfb-run --auto-servernum npm run test:recorder
+      # Tree data rows are recorded by path, and arrows and checkboxes become steps.
+      - run: xvfb-run --auto-servernum npm run test:recorder-tree
 
   # Regression run against your application. Export your suite from Settings into ./regression,
   # commit it, and add secrets such as TS_VAR_password in the repository settings.

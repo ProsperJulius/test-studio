@@ -1,0 +1,234 @@
+{
+  "id": "TC016",
+  "title": "Tree data from a server: folders load when opened",
+  "tags": [
+    "grid",
+    "tree"
+  ],
+  "priority": "P2",
+  "requirement": "",
+  "approval": "Approved",
+  "startUrl": "/tree-server.html",
+  "steps": [
+    {
+      "id": "s16-19",
+      "action": "Open page",
+      "target": "Departments",
+      "recordedTarget": "",
+      "value": "/tree-server.html",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s16-20",
+      "action": "Click",
+      "target": "Role",
+      "recordedTarget": "",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": ""
+        },
+        "part": "cell",
+        "column": {
+          "colId": "role",
+          "header": "Role"
+        },
+        "row": {
+          "mode": "path",
+          "column": {
+            "colId": "",
+            "header": "Organisation"
+          },
+          "value": "Finance › Payroll › Jane Smith"
+        },
+        "inner": null
+      }
+    },
+    {
+      "id": "s16-21",
+      "action": "Verify element text",
+      "target": "Role",
+      "recordedTarget": "",
+      "value": "Manager",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": ""
+        },
+        "part": "cell",
+        "column": {
+          "colId": "role",
+          "header": "Role"
+        },
+        "row": {
+          "mode": "path",
+          "column": {
+            "colId": "",
+            "header": "Organisation"
+          },
+          "value": "Finance › Payroll › Jane Smith"
+        },
+        "inner": null
+      }
+    },
+    {
+      "id": "s16-22",
+      "action": "Verify element text",
+      "target": "Role",
+      "recordedTarget": "",
+      "value": "Analyst",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": ""
+        },
+        "part": "cell",
+        "column": {
+          "colId": "role",
+          "header": "Role"
+        },
+        "row": {
+          "mode": "path",
+          "column": {
+            "colId": "",
+            "header": "Organisation"
+          },
+          "value": "Finance › Payroll › Jane Smithers"
+        },
+        "inner": null
+      }
+    },
+    {
+      "id": "s16-23",
+      "action": "Click",
+      "target": "Organisation",
+      "recordedTarget": "",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": ""
+        },
+        "part": "cell",
+        "column": {
+          "colId": "",
+          "header": ""
+        },
+        "row": {
+          "mode": "path",
+          "column": {
+            "colId": "",
+            "header": "Organisation"
+          },
+          "value": "Finance › Audit"
+        },
+        "inner": "expand"
+      }
+    },
+    {
+      "id": "s16-24",
+      "action": "Verify element is hidden",
+      "target": "Organisation",
+      "recordedTarget": "",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": ""
+        },
+        "part": "cell",
+        "column": {
+          "colId": "",
+          "header": ""
+        },
+        "row": {
+          "mode": "path",
+          "column": {
+            "colId": "",
+            "header": "Organisation"
+          },
+          "value": "Finance › Audit › Nobody"
+        },
+        "inner": null
+      }
+    },
+    {
+      "id": "s16-25",
+      "action": "Click",
+      "target": "Role",
+      "recordedTarget": "",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": ""
+        },
+        "part": "cell",
+        "column": {
+          "colId": "role",
+          "header": "Role"
+        },
+        "row": {
+          "mode": "path",
+          "column": {
+            "colId": "",
+            "header": "Organisation"
+          },
+          "value": "Engineering › Platform › Alan Turing"
+        },
+        "inner": null
+      }
+    },
+    {
+      "id": "s16-26",
+      "action": "Verify element text",
+      "target": "Role",
+      "recordedTarget": "",
+      "value": "Principal engineer",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": ""
+        },
+        "part": "cell",
+        "column": {
+          "colId": "role",
+          "header": "Role"
+        },
+        "row": {
+          "mode": "path",
+          "column": {
+            "colId": "",
+            "header": "Organisation"
+          },
+          "value": "Engineering › Platform › Alan Turing"
+        },
+        "inner": null
+      }
+    }
+  ]
+}

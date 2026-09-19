@@ -1,0 +1,504 @@
+{
+  "id": "TC015",
+  "title": "Tree data: paths, repeated names, scrolling under sticky folders, expand, collapse and select",
+  "tags": [
+    "grid",
+    "tree"
+  ],
+  "priority": "P2",
+  "requirement": "",
+  "approval": "Approved",
+  "startUrl": "/tree.html",
+  "steps": [
+    {
+      "id": "s15-0",
+      "action": "Open page",
+      "target": "Files",
+      "recordedTarget": "",
+      "value": "/tree.html",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s15-1",
+      "action": "Verify element is hidden",
+      "target": "File Explorer",
+      "recordedTarget": "",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": ""
+        },
+        "part": "cell",
+        "column": {
+          "colId": "",
+          "header": ""
+        },
+        "row": {
+          "mode": "path",
+          "column": {
+            "colId": "",
+            "header": "File Explorer"
+          },
+          "value": "Documents › Work › ProjectAlpha › Proposal.docx"
+        },
+        "inner": null
+      }
+    },
+    {
+      "id": "s15-2",
+      "action": "Verify element is visible",
+      "target": "Created",
+      "recordedTarget": "",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": ""
+        },
+        "part": "cell",
+        "column": {
+          "colId": "created",
+          "header": "Created"
+        },
+        "row": {
+          "mode": "path",
+          "column": {
+            "colId": "",
+            "header": "File Explorer"
+          },
+          "value": "Desktop › ProjectAlpha › Proposal.docx"
+        },
+        "inner": null
+      }
+    },
+    {
+      "id": "s15-3",
+      "action": "Click",
+      "target": "Created",
+      "recordedTarget": "",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": ""
+        },
+        "part": "cell",
+        "column": {
+          "colId": "created",
+          "header": "Created"
+        },
+        "row": {
+          "mode": "path",
+          "column": {
+            "colId": "",
+            "header": "File Explorer"
+          },
+          "value": "Documents › Work › ProjectAlpha › Proposal.docx"
+        },
+        "inner": null
+      }
+    },
+    {
+      "id": "s15-4",
+      "action": "Verify element text",
+      "target": "Modified",
+      "recordedTarget": "",
+      "value": "2023-08-01",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": ""
+        },
+        "part": "cell",
+        "column": {
+          "colId": "modified",
+          "header": "Modified"
+        },
+        "row": {
+          "mode": "path",
+          "column": {
+            "colId": "",
+            "header": "File Explorer"
+          },
+          "value": "Documents › Work › ProjectAlpha › Proposal.docx"
+        },
+        "inner": null
+      }
+    },
+    {
+      "id": "s15-5",
+      "action": "Verify element text",
+      "target": "Created",
+      "recordedTarget": "",
+      "value": "2024-12-04",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": ""
+        },
+        "part": "cell",
+        "column": {
+          "colId": "created",
+          "header": "Created"
+        },
+        "row": {
+          "mode": "path",
+          "column": {
+            "colId": "",
+            "header": "File Explorer"
+          },
+          "value": "Archive › 2024 › Month 12 › report-4.pdf"
+        },
+        "inner": null
+      }
+    },
+    {
+      "id": "s15-6",
+      "action": "Click",
+      "target": "Modified",
+      "recordedTarget": "",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": ""
+        },
+        "part": "cell",
+        "column": {
+          "colId": "modified",
+          "header": "Modified"
+        },
+        "row": {
+          "mode": "path",
+          "column": {
+            "colId": "",
+            "header": "File Explorer"
+          },
+          "value": "Archive › 2024 › Month 11 › report-2.pdf"
+        },
+        "inner": null
+      }
+    },
+    {
+      "id": "s15-7",
+      "action": "Verify element text",
+      "target": "Created",
+      "recordedTarget": "",
+      "value": "2020-01-01",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": ""
+        },
+        "part": "cell",
+        "column": {
+          "colId": "created",
+          "header": "Created"
+        },
+        "row": {
+          "mode": "path",
+          "column": {
+            "colId": "",
+            "header": "File Explorer"
+          },
+          "value": "Archive › 2020 › Month 01 › report-1.pdf"
+        },
+        "inner": null
+      }
+    },
+    {
+      "id": "s15-8",
+      "action": "Click",
+      "target": "File Explorer",
+      "recordedTarget": "",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": ""
+        },
+        "part": "cell",
+        "column": {
+          "colId": "",
+          "header": ""
+        },
+        "row": {
+          "mode": "path",
+          "column": {
+            "colId": "",
+            "header": "File Explorer"
+          },
+          "value": "Pictures › Family"
+        },
+        "inner": "select"
+      }
+    },
+    {
+      "id": "s15-9",
+      "action": "Verify text appears",
+      "target": "",
+      "recordedTarget": "",
+      "value": "Selected: Birthday2022.jpg",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s15-10",
+      "action": "Click",
+      "target": "File Explorer",
+      "recordedTarget": "",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": ""
+        },
+        "part": "cell",
+        "column": {
+          "colId": "",
+          "header": ""
+        },
+        "row": {
+          "mode": "path",
+          "column": {
+            "colId": "",
+            "header": "File Explorer"
+          },
+          "value": "Pictures › Family"
+        },
+        "inner": "select"
+      }
+    },
+    {
+      "id": "s15-11",
+      "action": "Verify text appears",
+      "target": "",
+      "recordedTarget": "",
+      "value": "Selected: Birthday2022.jpg",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s15-12",
+      "action": "Click",
+      "target": "File Explorer",
+      "recordedTarget": "",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": ""
+        },
+        "part": "cell",
+        "column": {
+          "colId": "",
+          "header": ""
+        },
+        "row": {
+          "mode": "path",
+          "column": {
+            "colId": "",
+            "header": "File Explorer"
+          },
+          "value": "Pictures › Family"
+        },
+        "inner": "deselect"
+      }
+    },
+    {
+      "id": "s15-13",
+      "action": "Verify text appears",
+      "target": "",
+      "recordedTarget": "",
+      "value": "Selected: none",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s15-14",
+      "action": "Click",
+      "target": "File Explorer",
+      "recordedTarget": "",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": ""
+        },
+        "part": "cell",
+        "column": {
+          "colId": "",
+          "header": ""
+        },
+        "row": {
+          "mode": "path",
+          "column": {
+            "colId": "",
+            "header": "File Explorer"
+          },
+          "value": "Documents › Work"
+        },
+        "inner": "collapse"
+      }
+    },
+    {
+      "id": "s15-15",
+      "action": "Verify element is hidden",
+      "target": "File Explorer",
+      "recordedTarget": "",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": ""
+        },
+        "part": "cell",
+        "column": {
+          "colId": "",
+          "header": ""
+        },
+        "row": {
+          "mode": "path",
+          "column": {
+            "colId": "",
+            "header": "File Explorer"
+          },
+          "value": "Documents › Work › ProjectBeta › Report.pdf"
+        },
+        "inner": null
+      }
+    },
+    {
+      "id": "s15-16",
+      "action": "Click",
+      "target": "File Explorer",
+      "recordedTarget": "",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": ""
+        },
+        "part": "cell",
+        "column": {
+          "colId": "",
+          "header": ""
+        },
+        "row": {
+          "mode": "path",
+          "column": {
+            "colId": "",
+            "header": "File Explorer"
+          },
+          "value": "Documents › Work"
+        },
+        "inner": "expand"
+      }
+    },
+    {
+      "id": "s15-17",
+      "action": "Click",
+      "target": "File Explorer",
+      "recordedTarget": "",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": ""
+        },
+        "part": "cell",
+        "column": {
+          "colId": "",
+          "header": ""
+        },
+        "row": {
+          "mode": "path",
+          "column": {
+            "colId": "",
+            "header": "File Explorer"
+          },
+          "value": "Documents › Work"
+        },
+        "inner": "expand"
+      }
+    },
+    {
+      "id": "s15-18",
+      "action": "Verify element text",
+      "target": "Created",
+      "recordedTarget": "",
+      "value": "2023-06-22",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": ""
+        },
+        "part": "cell",
+        "column": {
+          "colId": "created",
+          "header": "Created"
+        },
+        "row": {
+          "mode": "path",
+          "column": {
+            "colId": "",
+            "header": "File Explorer"
+          },
+          "value": "Documents › Work › ProjectBeta › Report.pdf"
+        },
+        "inner": null
+      }
+    }
+  ]
+}
