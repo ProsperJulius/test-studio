@@ -1,5 +1,5 @@
 // Checks a suite for problems before it runs.
-const { ACTIONS, metaFor } = require('./describe');
+const { ACTIONS, metaFor, usesGrid } = require('./describe');
 const { templateToRegex, namesIn, capturedNames } = require('./capture');
 const { parseLocator, locatorQuality } = require('./locator-parse');
 // stepRefs is shared with the runner so what is validated and what is substituted cannot drift.
@@ -41,7 +41,7 @@ function validateSuite(data, variables, options = {}) {
       }
       if (meta.verify || meta.capture) verifies++;
 
-      if (s.grid && meta.grid) {
+      if (usesGrid(s)) {
         const g = s.grid;
         // Checking that a row is not in the grid needs only the row, not a column.
         if (s.action === 'Verify element is hidden' && (g.part || 'cell') !== 'cell') add('error', at, 'Only a row can be checked as not in the grid. Set the grid part to Cell.');

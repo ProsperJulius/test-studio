@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { validateSuite } = require('../../src/validate');
 const { parseArgs } = require('../../src/cli-args');
-const { ACTIONS, describeStep, expectedResult } = require('../../src/describe');
+const { ACTIONS, describeStep, expectedResult, usesGrid } = require('../../src/describe');
 
 test('validateSuite reports errors and warnings', () => {
   const data = {
@@ -148,4 +148,29 @@ test('tree rows can be selected and deselected with their checkbox', () => {
   assert.equal(describeStep(tree('deselect')), 'Deselect the row “Pictures › Family” in the grid');
   const p = validateSuite({ blocks: [], tests: [{ id: 'T', steps: [tree('select'), tree('deselect'), { action: 'Verify text appears', value: 'x' }] }] }, []);
   assert.deepEqual(p.filter((x) => x.level === 'error'), [], 'selecting needs no column');
+});
+
+test('a step with a locator is a locator step, even if a grid target is left over', () => {
+  const grid = { grid: { label: 'Orders' }, part: 'cell', column: { colId: 'status', header: 'Status' },
+    row: { mode: 'match', match: 'equals', column: { colId: 'orderId', header: 'Order ID' }, value: '1005' } };
+
+  assert.equal(usesGrid({ action: 'Click', grid }), true);
+  assert.equal(usesGrid({ action: 'Verify element is hidden', grid }), true);
+  // Cloning a step or changing its action can leave a grid target on a step that has a locator.
+  // Actions gain grid support over time, so without this the step would change what it checks.
+  assert.equal(usesGrid({ action: 'Verify element is hidden', grid, locator: "getByTestId('admin')" }), false);
+  assert.equal(usesGrid({ action: 'Click', grid, locator: "getByRole('button')" }), false);
+  assert.equal(usesGrid({ action: 'Verify element is hidden', grid, locator: '   ' }), true, 'a blank locator is not a locator');
+  // Actions that never act on a grid, and steps with no grid target at all.
+  assert.equal(usesGrid({ action: 'Verify field value', grid }), false);
+  assert.equal(usesGrid({ action: 'Click', target: 'Save' }), false);
+  assert.equal(usesGrid(null), false);
+
+  const step = { action: 'Verify element is hidden', target: 'Admin panel', grid, locator: "getByTestId('admin')" };
+  assert.equal(describeStep(step), 'Check that “Admin panel” is not visible');
+  assert.equal(describeStep({ ...step, locator: undefined }), 'Check that the row where Order ID is “1005” is not in the Orders grid');
+
+  // The leftover grid target is not validated as if it were the step's target.
+  const p = validateSuite({ blocks: [], tests: [{ id: 'T', steps: [step] }] }, []);
+  assert.deepEqual(p.filter((x) => x.where === 'T step 1' && x.level === 'error'), []);
 });

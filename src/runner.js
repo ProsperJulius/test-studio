@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { BrowserWindow } = require('electron');
-const { describeStep, metaFor } = require('./describe');
+const { describeStep, metaFor, usesGrid } = require('./describe');
 const { substitute, stepRefs, missingFor, expandSteps, resolveGrid, locatorsFor, resolveStep } = require('./steps');
 const captureText = require('./capture');
 const pw = require('./pw-session');
@@ -377,8 +377,15 @@ function studioGrid(g, rowValue, action, value, scanId) {
         if (!key && !keyCells.length) return scan('h', 'Column “' + colName(r.column) + '” was not found in ' + gridName + '.');
         const wanted = norm(rowValue).toLowerCase();
         const match = keyCells.find((c) => (contains ? norm(c.innerText).toLowerCase().includes(wanted) : norm(c.innerText) === norm(rowValue)));
-        if (!match && loading()) return { ok: false, reason: gridName + ' is still loading rows.' };
-        if (!match) return missing(scan('v', describeRow + ' was not found in ' + gridName + '.'));
+        if (!match) {
+          // Keep scrolling while rows arrive, rather than standing still until the step times out.
+          const res = scan('v', describeRow + ' was not found in ' + gridName + '.');
+          if (res.scrolled) return res;
+          // Rows still coming from a server are not the same as a row that is not there, so the
+          // search is not finished and “not in the grid” must not pass yet.
+          if (loading()) return { ok: false, reason: gridName + ' is still loading rows.' };
+          return missing(res);
+        }
         row = match.closest('.ag-row');
       }
       st.rowId = row.getAttribute('row-id');
@@ -475,13 +482,17 @@ function studioGrid(g, rowValue, action, value, scanId) {
       left: box.left + vp.clientLeft,
       right: box.left + vp.clientLeft + vp.clientWidth
     };
-    // Folder rows that stick to the top (or totals to the bottom) while scrolling cover the rows under them.
-    if (!el.closest('[class*="sticky"]')) {
-      for (const s of root.querySelectorAll('.ag-grid-sticky-top-rows-container, .ag-sticky-top-container')) {
+    // Folder rows that stick to the top while scrolling, and rows pinned to the top or bottom such as
+    // a totals row, are drawn over the scrolling rows. A cell under one of them cannot be clicked,
+    // and in AG Grid 36 they are inside the viewport, so the area rows can be used in is smaller.
+    const TOP_BANDS = '.ag-grid-sticky-top-rows-container, .ag-sticky-top-container, .ag-grid-pinned-top-rows, .ag-floating-top';
+    const BOTTOM_BANDS = '.ag-grid-sticky-bottom-rows-container, .ag-sticky-bottom-container, .ag-grid-pinned-bottom-rows, .ag-floating-bottom';
+    if (!el.closest('[class*="sticky"], ' + TOP_BANDS + ', ' + BOTTOM_BANDS)) {
+      for (const s of root.querySelectorAll(TOP_BANDS)) {
         const r = s.getBoundingClientRect();
         if (r.height && !s.classList.contains('ag-hidden')) v.top = Math.max(v.top, r.bottom);
       }
-      for (const s of root.querySelectorAll('.ag-grid-sticky-bottom-rows-container, .ag-sticky-bottom-container')) {
+      for (const s of root.querySelectorAll(BOTTOM_BANDS)) {
         const r = s.getBoundingClientRect();
         if (r.height && !s.classList.contains('ag-hidden')) v.bottom = Math.min(v.bottom, r.top);
       }
@@ -648,7 +659,7 @@ async function executeStep(wc, step, ctx) {
   const value = substitute(step.value, vars);
   const timeout = Math.max(1, Number(ctx.settings.stepTimeout) || 10) * 1000;
   const meta = metaFor(step.action);
-  if (step.grid && meta.grid) return gridStep(wc, step, ctx, value, vars, timeout);
+  if (usesGrid(step)) return gridStep(wc, step, ctx, value, vars, timeout);
 
   switch (step.action) {
     case 'Open page': {

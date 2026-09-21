@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Shipments – Shop</title>
+  <link rel="stylesheet" href="/vendor/ag-grid/styles/ag-grid.css">
+  <link rel="stylesheet" href="/vendor/ag-grid/styles/ag-theme-quartz.css">
+</head>
+<body>
+  <h2>Shipments</h2>
+  <!-- Only signed-in admins see this, so it is on the page but hidden. -->
+  <div data-testid="admin-panel" hidden>Admin tools</div>
+  <!-- Rows arrive a block at a time, so the grid always holds some rows that are still loading
+       while it is scrolled. Searching for a row must keep scrolling through them, and a row that
+       is not in the grid must only be reported once the whole grid has been read. -->
+  <div id="grid" class="ag-theme-quartz" style="height: 300px; width: 760px;"></div>
+
+  <script src="/vendor/ag-grid/dist/ag-grid-community.min.js"></script>
+  <script>
+    const all = Array.from({ length: 200 }, (_, i) => ({
+      orderId: String(1000 + i),
+      customer: 'Customer ' + (i + 1),
+      status: ['Paid', 'Pending', 'Shipped', 'Cancelled'][i % 4]
+    }));
+    agGrid.createGrid(document.getElementById('grid'), {
+      rowModelType: 'infinite',
+      // Rows pinned above and below the scrolling rows, as a real grid pins a totals row. In this
+      // version of AG Grid they are .ag-floating-top and .ag-floating-bottom, and they are drawn
+      // over the rows, so a cell underneath one of them cannot be clicked.
+      pinnedTopRowData: [{ orderId: '', customer: 'Newest shipments', status: '' }],
+      pinnedBottomRowData: [{ orderId: '', customer: 'Total', status: '200 shipments' }],
+      cacheBlockSize: 50,
+      maxBlocksInCache: 2,
+      columnDefs: [
+        { headerName: 'Order ID', field: 'orderId', width: 140 },
+        { headerName: 'Customer', field: 'customer', width: 260 },
+        { headerName: 'Status', field: 'status', width: 200 }
+      ],
+      datasource: {
+        getRows(params) {
+          setTimeout(() => params.successCallback(all.slice(params.startRow, params.endRow), all.length), 150);
+        }
+      }
+    });
+  </script>
+</body>
+</html>

@@ -43,6 +43,9 @@
 
     const api = agGrid.createGrid(document.getElementById('files'), {
       rowData,
+      // A totals row pinned to the bottom: its name cell is blank, as in a real summary row.
+      // Reading the tree must not mistake it for a row whose name has not been drawn yet.
+      pinnedBottomRowData: [{ created: '', modified: '', size: 0 }],
       treeData: true,
       getDataPath: (d) => d.path,
       getRowId: (p) => p.data.id,

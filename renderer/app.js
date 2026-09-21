@@ -1,6 +1,6 @@
 'use strict';
 
-const { describeStep, describeGridTarget, expectedResult, metaFor, ACTIONS } = window.StepText;
+const { describeStep, describeGridTarget, expectedResult, metaFor, usesGrid, ACTIONS } = window.StepText;
 const Capture = window.Capture;
 const LocatorParse = window.LocatorParse;
 
@@ -387,10 +387,10 @@ function editHtml() {
       const ph = meta.value || '';
       valueField = `<input class="field" aria-label="${meta.capture ? 'Message with the value in curly brackets' : 'Value'}" type="${st.secret ? 'password' : 'text'}" data-field="value" data-i="${i}" value="${esc(st.value)}" placeholder="${esc(ph)}">`;
     }
-    const usesGrid = !!(st.grid && meta.grid);
+    const onGrid = usesGrid(st);
     let targetField;
     if (noTarget) targetField = '<span class="muted">Whole page</span>';
-    else if (usesGrid) {
+    else if (onGrid) {
       targetField = `<div class="grid-summary">
         <span>${esc(describeGridTarget(st.grid))}</span>
         <button class="link-btn" data-act="grid-toggle" data-id="${esc(st.id)}">${S.gridOpen === st.id ? 'Close' : 'Edit grid target'}</button>
@@ -410,7 +410,7 @@ function editHtml() {
       </div>`;
     }
     let panel = '';
-    if (usesGrid && S.gridOpen === st.id) panel = gridPanelHtml(st, i);
+    if (onGrid && S.gridOpen === st.id) panel = gridPanelHtml(st, i);
     if (meta.capture) {
       const pv = capturePreview(st.value);
       panel = `<div class="tr step-panel"><span class="${pv.ok ? 'muted' : 'txt-warn'}">${esc(pv.text)}</span></div>`;
@@ -958,6 +958,8 @@ const actions = {
   'grid-toggle': (el) => { S.gridOpen = S.gridOpen === el.dataset.id ? null : el.dataset.id; render(); },
   'grid-use': (el) => {
     const st = S.editing.obj.steps[+el.dataset.i];
+    // The grid target replaces the locator, so the step has one way of finding its element.
+    delete st.locator;
     st.grid = newGridTarget(st);
     S.gridOpen = st.id;
     markChanged();

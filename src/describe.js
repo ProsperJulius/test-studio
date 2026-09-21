@@ -46,6 +46,15 @@
 
   const gridNameOf = (g) => (g.grid && g.grid.label ? 'the ' + g.grid.label + ' grid' : 'the grid');
 
+  // Whether a step acts on a grid cell or header rather than on an element of its own. A step that
+  // has a locator is a locator step: its grid target is left over from when it was recorded or from
+  // an earlier action, and must not quietly take over the step. Actions gain grid support over time,
+  // so without this an old step can change what it checks when a new version adds it.
+  function usesGrid(step) {
+    if (!step || !step.grid || !metaFor(step.action).grid) return false;
+    return !(step.locator && String(step.locator).trim());
+  }
+
   // How a grid step finds its row, e.g. row where Customer contains “Jane”.
   function describeGridRow(g) {
     const r = (g && g.row) || {};
@@ -79,7 +88,7 @@
   function describeStep(step, blocks) {
     if (!step.target && step.locator) step = { ...step, target: locatorName(step.locator) };
     const shown = step.secret ? '••••••••' : (step.value || '');
-    if (step.grid && metaFor(step.action).grid) {
+    if (usesGrid(step)) {
       const where = describeGridTarget(step.grid);
       const inner = step.grid.inner;
       const verbs = { expand: 'Expand the ', collapse: 'Collapse the ', select: 'Select the ', deselect: 'Deselect the ' };
@@ -158,7 +167,7 @@
     return 'Expected: ' + String(step.text || '').replace(/^Check that /, '') + '.';
   }
 
-  const api = { ACTIONS, ACTION_META, metaFor, describeStep, describeGridTarget, describeGridRow, splitPath, expectedResult };
+  const api = { ACTIONS, ACTION_META, metaFor, usesGrid, describeStep, describeGridTarget, describeGridRow, splitPath, expectedResult };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.StepText = api;
 })(typeof window !== 'undefined' ? window : globalThis);

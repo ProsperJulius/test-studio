@@ -38,7 +38,11 @@ app.whenReady().then(async () => {
   const cell = (rowId, colId) => `document.querySelector('.ag-row[row-id="${rowId}"] .ag-cell[col-id="${colId}"]')`;
 
   await clickAt(folder('Documents', 0) + `.querySelector('.ag-group-contracted')`);   // expand Documents
+  // The grid has a totals row pinned to the bottom, so put each row well clear of it before
+  // clicking: a click on the covered part of a row lands on the pinned row instead.
+  await scrollTo('f3', 'middle');
   await clickAt(cell('f3', 'created'));                                                // Documents › Work › ProjectAlpha › Proposal.docx
+  await scrollTo('f0', 'middle');
   await clickAt(cell('f0', 'created'));                                                // Desktop › ProjectAlpha › Proposal.docx
   // Far down the Archive branch, scrolled so its folders are off screen or stuck to the top.
   await wc.executeJavaScript(`document.querySelector('.ag-grid-viewport').scrollTop = 4000`);

@@ -1,0 +1,179 @@
+{
+  "id": "TC019",
+  "title": "Grid: checks while rows load, pinned rows, and a check with its own locator",
+  "tags": [
+    "grid"
+  ],
+  "priority": "P2",
+  "requirement": "",
+  "approval": "Approved",
+  "startUrl": "/loading-grid.html",
+  "steps": [
+    {
+      "id": "s190",
+      "action": "Open page",
+      "target": "shipments page",
+      "recordedTarget": "shipments page",
+      "value": "/loading-grid.html",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s191",
+      "action": "Verify element text",
+      "target": "Status",
+      "recordedTarget": "Status",
+      "value": "Paid",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": "Shipments"
+        },
+        "part": "cell",
+        "column": {
+          "colId": "",
+          "header": "Status"
+        },
+        "row": {
+          "mode": "match",
+          "match": "equals",
+          "column": {
+            "colId": "",
+            "header": "Order ID"
+          },
+          "value": "1120"
+        },
+        "inner": null
+      }
+    },
+    {
+      "id": "s192",
+      "action": "Verify element is visible",
+      "target": "Customer",
+      "recordedTarget": "Customer",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": "Shipments"
+        },
+        "part": "cell",
+        "column": {
+          "colId": "",
+          "header": "Customer"
+        },
+        "row": {
+          "mode": "match",
+          "match": "equals",
+          "column": {
+            "colId": "",
+            "header": "Order ID"
+          },
+          "value": "1120"
+        },
+        "inner": null
+      }
+    },
+    {
+      "id": "s193",
+      "action": "Verify element is hidden",
+      "target": "Order ID",
+      "recordedTarget": "Order ID",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": "Shipments"
+        },
+        "part": "cell",
+        "column": {
+          "colId": "",
+          "header": "Order ID"
+        },
+        "row": {
+          "mode": "match",
+          "match": "equals",
+          "column": {
+            "colId": "",
+            "header": "Order ID"
+          },
+          "value": "9999"
+        },
+        "inner": null
+      }
+    },
+    {
+      "id": "s195",
+      "action": "Click",
+      "target": "Customer",
+      "recordedTarget": "Customer",
+      "value": "",
+      "secret": false,
+      "shot": true,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": "Shipments"
+        },
+        "part": "cell",
+        "column": {
+          "colId": "",
+          "header": "Customer"
+        },
+        "row": {
+          "mode": "match",
+          "match": "equals",
+          "column": {
+            "colId": "",
+            "header": "Order ID"
+          },
+          "value": "1160"
+        },
+        "inner": null
+      }
+    },
+    {
+      "id": "s194",
+      "action": "Verify element is hidden",
+      "target": "Admin tools",
+      "recordedTarget": "Admin tools",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByTestId('admin-panel')",
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": "Shipments"
+        },
+        "part": "cell",
+        "column": {
+          "colId": "",
+          "header": "Order ID"
+        },
+        "row": {
+          "mode": "match",
+          "match": "equals",
+          "column": {
+            "colId": "",
+            "header": "Order ID"
+          },
+          "value": "1000"
+        },
+        "inner": null
+      }
+    }
+  ]
+}
