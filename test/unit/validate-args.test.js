@@ -102,7 +102,9 @@ test('validateSuite ignores disabled steps and flags tests with every step disab
   const p = validateSuite(data, []);
   assert.ok(!p.some((x) => x.where.startsWith('T1') && x.level === 'error'));
   assert.ok(p.some((x) => x.where === 'T2' && /All steps are disabled/.test(x.message)));
-  assert.ok(p.some((x) => x.where === 'T3 step 2' && /not found/.test(x.message)));
+  // The step that saves {order} is turned off, which is different from there being no such test data.
+  assert.ok(p.some((x) => x.where === 'T3 step 2' && /\{order\} is saved by a “Save value from text” step that is turned off/.test(x.message)));
+  assert.ok(!p.some((x) => x.where === 'T3 step 2' && /not found/.test(x.message)));
 });
 
 test('grid rows can be matched by part of a value and checked as not in the grid', () => {

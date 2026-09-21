@@ -112,13 +112,15 @@
   }
 
   // Names saved by capture steps, in step order, with blocks expanded.
-  function capturedNames(steps, blocks, depth = 0) {
+  // opts.includeDisabled also lists names saved by steps that are turned off, so validation can
+  // tell "no such test data" apart from "the step that saves it is turned off".
+  function capturedNames(steps, blocks, opts = {}, depth = 0) {
     const out = [];
     for (const s of steps || []) {
-      if (s.disabled) continue;
+      if (s.disabled && !opts.includeDisabled) continue;
       if (s.action === 'Use block') {
         const b = (blocks || []).find((x) => x.id === s.value);
-        if (b && depth < 5) out.push(...capturedNames(b.steps, blocks, depth + 1));
+        if (b && depth < 5) out.push(...capturedNames(b.steps, blocks, opts, depth + 1));
       } else if (s.action === 'Save value from text') {
         out.push(...namesIn(s.value));
       }

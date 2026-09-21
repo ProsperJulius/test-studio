@@ -64,9 +64,18 @@ function cli(args, env = {}) {
     for (const id of ['TC006', 'TC007', 'TC008', 'TC009', 'TC010', 'TC013', 'TC014', 'TC015', 'TC016']) assert.equal(byId[id].status, 'Passed', id + ': ' + JSON.stringify(byId[id].failure));
     assert.deepEqual(byId.TC007.captured, { orderId: '1003' });
     assert.deepEqual(byId.TC009.captured, { newOrderId: '5001' });
-    const tc010 = JSON.parse(fs.readFileSync(path.join(latest.dir, 'run.json'), 'utf8')).tests.find((t) => t.id === 'TC010');
+    const runTests = JSON.parse(fs.readFileSync(path.join(latest.dir, 'run.json'), 'utf8')).tests;
+    const inRun = (id) => runTests.find((t) => t.id === id);
+    const stepText = (id, match) => (inRun(id).steps.find((s) => match.test(s.text)) || {}).text;
+    const tc010 = inRun('TC010');
     assert.equal(tc010.steps[0].value, '/order.html?id=5001');
     assert.match(tc010.steps[1].text, /Order details for 5001/);
+
+    // Test data reaches a grid row and a locator, and the results show the values actually used.
+    assert.ok(stepText('TC013', /row where Customer contains “customer 250”/), 'TC013 finds its row through {keyCustomer}');
+    assert.ok(!JSON.stringify(inRun('TC013')).includes('{keyCustomer}'), 'no placeholder is left in the results');
+    // TC011 step s202 has no target, so its name in the run view comes from its locator.
+    assert.equal(stepText('TC011', /Welcome/), 'Check that “Welcome, alice” is visible');
 
     // Playwright-style locators and strict mode.
     assert.equal(byId.TC011.status, 'Passed', 'TC011: ' + JSON.stringify(byId.TC011.failure));

@@ -22,8 +22,8 @@
     {
       "id": "s202",
       "action": "Verify element is visible",
-      "target": "Welcome heading",
-      "recordedTarget": "Welcome heading",
+      "target": "",
+      "recordedTarget": "",
       "value": "",
       "secret": false,
       "shot": false,

@@ -34,10 +34,22 @@ function exportTests(data, ids) {
   return { text: yaml.dump(doc, { noRefs: true, lineWidth: -1 }), warnings };
 }
 
+// In YAML an unquoted {orderId} is a mapping, not text, so a step imported from a hand-written file
+// would silently lose its test data. Say so instead, with the quoting that fixes it.
+const TEXT_FIELDS = ['value', 'target', 'recordedTarget', 'locator'];
+
+function checkText(at, field, value) {
+  if (value == null || typeof value !== 'object') return;
+  throw new Error(at + ': ' + field + ' must be text. Put quotes around a value that starts with “{”, for example ' + field + ": '{orderId}'.");
+}
+
 function checkSteps(where, steps) {
   if (!Array.isArray(steps)) throw new Error(where + ' has no list of steps.');
   steps.forEach((s, i) => {
     if (!s || typeof s !== 'object' || !s.action) throw new Error(where + ' step ' + (i + 1) + ' has no action.');
+    const at = where + ' step ' + (i + 1);
+    for (const f of TEXT_FIELDS) checkText(at, f, s[f]);
+    if (s.grid && s.grid.row) checkText(at, 'grid.row.value', s.grid.row.value);
   });
 }
 

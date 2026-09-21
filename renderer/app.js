@@ -479,7 +479,7 @@ function editHtml() {
           <button class="btn btn-sm" data-act="save-as-block">Save block</button>` : ''}
       </div>
     </div>
-    <p class="muted">Changes save automatically. Use {variable} in values and locators to pull from Test data. Hidden values are masked in the editor and the evidence document.</p>
+    <p class="muted">Changes save automatically. Use {variable} in values, locators and target names to pull from Test data. Hidden values are masked in the editor and the evidence document.</p>
     <p class="muted">Each step finds its element with a Playwright-style locator such as <span class="mono">getByRole('button', { name: 'Save' })</span>. Business users can leave the recorded locator as it is; the name above it is only used in descriptions and reports.</p>
   </div>`;
 }

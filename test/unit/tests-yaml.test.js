@@ -63,3 +63,18 @@ test('importTests replaces tests with the same ID but keeps their last result', 
   assert.equal(t.lastStatus, 'Passed');
   assert.equal(target.tests.length, 2);
 });
+
+test('parseTests rejects a {name} that YAML read as a mapping instead of text', () => {
+  const head = 'format: test-studio-tests\nversion: 1\ntests:\n  - id: TC001\n    title: Checkout\n    steps:\n      - action: Type\n        target: Order\n';
+  // Unquoted, YAML reads {orderId} as a flow mapping, which would silently lose the test data.
+  assert.throws(() => parseTests(head + '        value: {orderId}\n'), /value must be text.*'\{orderId\}'/s);
+  assert.throws(() => parseTests(head + "        locator: {x: 1}\n"), /locator must be text/);
+  assert.equal(parseTests(head + "        value: '{orderId}'\n").tests[0].steps[0].value, '{orderId}');
+  // Numbers still pass through, for example a Wait in seconds.
+  assert.equal(parseTests(head + '        value: 5\n').tests[0].steps[0].value, 5);
+});
+
+test('parseTests rejects a mapping in a grid row value', () => {
+  const text = 'format: test-studio-tests\nversion: 1\ntests:\n  - id: TC001\n    title: Grid\n    steps:\n      - action: Click\n        grid:\n          row:\n            mode: match\n            value: {orderId}\n';
+  assert.throws(() => parseTests(text), /grid\.row\.value must be text/);
+});

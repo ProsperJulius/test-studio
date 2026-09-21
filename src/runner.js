@@ -2,9 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const { BrowserWindow } = require('electron');
 const { describeStep, metaFor } = require('./describe');
-const { substitute, expandSteps, locatorsFor } = require('./steps');
+const { substitute, stepRefs, missingFor, expandSteps, resolveGrid, locatorsFor, resolveStep } = require('./steps');
 const captureText = require('./capture');
-const { parseLocator, mapText, formatLocator, locatorQuality } = require('./locator-parse');
 const pw = require('./pw-session');
 
 let running = false;
@@ -587,10 +586,10 @@ function pressEnter(wc) {
 }
 
 async function gridStep(wc, step, ctx, value, vars, timeout) {
-  const g = step.grid;
+  const g = resolveGrid(step.grid, vars);
   if (step.action === 'Verify element is hidden' && (g.part || 'cell') !== 'cell') throw new Error('Only a row can be checked as not in the grid. Set the grid part to Cell.');
   const scanId = Math.random().toString(36).slice(2);
-  const rowValue = g.row && g.row.mode !== 'index' ? substitute(g.row.value, vars) : null;
+  const rowValue = g.row && g.row.mode !== 'index' ? g.row.value : null;
   const res = await tryUntil(async () => {
     const r = await exec(wc, studioGrid, g, rowValue, step.action, value, scanId);
     if (r.hover) {
@@ -618,6 +617,12 @@ async function gridStep(wc, step, ctx, value, vars, timeout) {
 // Returns extra facts about the step, such as which locator found the element.
 async function executeStep(wc, step, ctx) {
   const vars = ctx.vars();
+  // Without this the {name} would be typed, clicked or searched for as literal text.
+  const missing = missingFor(step, vars);
+  if (missing.length) {
+    throw new Error('No value for ' + missing.map((k) => '{' + k + '}').join(', ')
+      + '. Add it in Test data, or save it with an earlier “Save value from text” step that is turned on.');
+  }
   const value = substitute(step.value, vars);
   const timeout = Math.max(1, Number(ctx.settings.stepTimeout) || 10) * 1000;
   const meta = metaFor(step.action);
@@ -715,21 +720,24 @@ async function capture(wc, dir, fileName) {
   return image.resize({ width: 320 }).toDataURL();
 }
 
-function freshSteps(template, blocks, variables) {
-  return expandSteps(template.steps, blocks).map((s, i) => ({
-    num: i + 1,
-    action: s.action,
-    text: (s._prefix || '') + describeStep(s, blocks),
-    value: s.secret ? '' : substitute(s.value, variables),
-    status: 'pending',
-    error: null,
-    screenshot: null,
-    ms: 0,
-    locator: s.locator || null,
-    locatedBy: null,
-    fragile: false,
-    _step: s
-  }));
+function freshSteps(template, blocks, variables, settings) {
+  return expandSteps(template.steps, blocks).map((s, i) => {
+    const r = resolveStep(s, variables, settings);
+    return {
+      num: i + 1,
+      action: s.action,
+      text: (s._prefix || '') + describeStep(r, blocks),
+      value: s.secret ? '' : r.value,
+      status: 'pending',
+      error: null,
+      screenshot: null,
+      ms: 0,
+      locator: r.locator || null,
+      locatedBy: null,
+      fragile: false,
+      _step: s
+    };
+  });
 }
 
 // Runs every step of one attempt in its own clean browser session. Returns true if all steps passed.
@@ -771,16 +779,11 @@ async function runAttempt({ t, ti, attempt, ctx, settings, run, dir, publish }) 
         if (win.isDestroyed()) throw new Error('The browser window was closed.');
         // Show the values actually used, such as a saved order ID, in results and evidence.
         const src = s._step;
-        const readsRow = src.grid && src.grid.row && src.grid.row.mode !== 'index' && /\{\w+\}/.test(String(src.grid.row.value || ''));
-        if (!src.secret && src.action !== 'Save value from text' && (/\{\w+\}/.test(String(src.value || '')) || readsRow)) {
-          const vars = stepCtx.vars();
-          const resolved = { ...src, value: substitute(src.value, vars) };
-          if (readsRow) resolved.grid = { ...src.grid, row: { ...src.grid.row, value: substitute(src.grid.row.value, vars) } };
-          s.value = resolved.value;
+        if (stepRefs(src).length) {
+          const resolved = resolveStep(src, stepCtx.vars(), ctx.settings);
+          if (!src.secret && src.action !== 'Save value from text') s.value = resolved.value;
+          if (resolved.locator) s.locator = resolved.locator;
           s.text = (src._prefix || '') + describeStep(resolved, ctx.blocks);
-        }
-        if (src.locator && /\{\w+\}/.test(src.locator)) {
-          try { s.locator = locatorsFor(src, stepCtx.vars(), ctx.settings).source; } catch (e) { /* reported when the step runs */ }
         }
         const next = t.steps[si + 1];
         stepCtx.beforeCapture = !!(next && next.action === 'Save value from text');
@@ -850,7 +853,7 @@ async function run({ run, tests, blocks, variables, settings, dir, onUpdate }) {
       previousAttempts: [],
       consoleErrors: [],
       captured: {},
-      steps: freshSteps(t, blocks, variables)
+      steps: freshSteps(t, blocks, variables, settings)
     }));
     const publish = (thumb) => onUpdate(stripInternal(run), thumb);
     publish();
@@ -865,7 +868,7 @@ async function run({ run, tests, blocks, variables, settings, dir, onUpdate }) {
         if (attempt > 1) {
           const f = t.steps.find((s) => s.status === 'failed');
           t.previousAttempts.push({ attempt: attempt - 1, failedStep: f ? f.num : null, error: f ? f.error : null, ms: t.steps.reduce((n, s) => n + s.ms, 0) });
-          t.steps = freshSteps(tests[ti], blocks, variables);
+          t.steps = freshSteps(tests[ti], blocks, variables, settings);
           t.consoleErrors = [];
           t.captured = {};
         }

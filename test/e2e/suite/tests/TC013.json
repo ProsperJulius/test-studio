@@ -45,7 +45,7 @@
             "colId": "customer",
             "header": "Customer"
           },
-          "value": "customer 250"
+          "value": "{keyCustomer}"
         },
         "inner": null
       }

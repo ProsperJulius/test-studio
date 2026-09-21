@@ -3,5 +3,10 @@
     "key": "user",
     "value": "alice",
     "secret": false
+  },
+  {
+    "key": "keyCustomer",
+    "value": "customer 250",
+    "secret": false
   }
 ]

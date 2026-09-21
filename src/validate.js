@@ -2,16 +2,8 @@
 const { ACTIONS, metaFor } = require('./describe');
 const { templateToRegex, namesIn, capturedNames } = require('./capture');
 const { parseLocator, locatorQuality } = require('./locator-parse');
-
-const refs = (value) => Array.from(String(value == null ? '' : value).matchAll(/\{(\w+)\}/g), (m) => m[1]);
-
-// Every {name} a step reads: its value (except a capture template) and a grid row value.
-function stepRefs(s) {
-  const out = s.action === 'Save value from text' ? [] : refs(s.value);
-  if (s.locator) out.push(...refs(s.locator));
-  if (s.grid && s.grid.row && s.grid.row.mode !== 'index') out.push(...refs(s.grid.row.value));
-  return out;
-}
+// stepRefs is shared with the runner so what is validated and what is substituted cannot drift.
+const { stepRefs } = require('./steps');
 
 // options.allTests: the whole suite when data.tests is only the tests selected to run, so values
 // saved by tests that were left out are reported as such rather than as unknown test data.
@@ -22,7 +14,9 @@ function validateSuite(data, variables, options = {}) {
   const vars = variables || data.variables || [];
   const tests = data.tests || [];
 
-  const allCaptured = new Set([...(options.allTests || tests).flatMap((t) => capturedNames(t.steps, blocks)), ...blocks.flatMap((b) => capturedNames(b.steps, blocks))]);
+  const captured = (opts) => new Set([...(options.allTests || tests).flatMap((t) => capturedNames(t.steps, blocks, opts)), ...blocks.flatMap((b) => capturedNames(b.steps, blocks, opts))]);
+  const allCaptured = captured();
+  const turnedOff = captured({ includeDisabled: true });
 
   const emptySecrets = new Set();
   const seen = new Set();
@@ -114,8 +108,10 @@ function validateSuite(data, variables, options = {}) {
       }
       const missing = Array.from(new Set(stepRefs(s).filter((k) => !available.has(k))));
       const early = missing.filter((k) => allCaptured.has(k));
-      const unknown = missing.filter((k) => !allCaptured.has(k));
+      const off = missing.filter((k) => !allCaptured.has(k) && turnedOff.has(k));
+      const unknown = missing.filter((k) => !allCaptured.has(k) && !turnedOff.has(k));
       if (early.length) add('error', at, early.map((k) => '{' + k + '}').join(', ') + ' is used before a “Save value from text” step saves it. If another test saves it, run that test first and tick “Share with later tests”.');
+      if (off.length) add('error', at, off.map((k) => '{' + k + '}').join(', ') + ' is saved by a “Save value from text” step that is turned off. Tick “Run this step” on it.');
       if (unknown.length) add('error', at, 'Test data not found: ' + unknown.map((k) => '{' + k + '}').join(', ') + '.');
       if (s.action === 'Save value from text') {
         for (const name of safeNames(s.value)) {
