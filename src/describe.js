@@ -12,6 +12,9 @@
     'Double-click': { target: true, value: null, grid: true },
     'Right-click': { target: true, value: null, grid: true },
     Type: { target: true, value: 'Value or {variable}', field: true, secretable: true, grid: true },
+    // Typing and committing in one step: a search box, a filter, or a grid cell that only takes the
+    // new value once Enter is pressed. Two steps did this before and both had to find the field.
+    'Type and press Enter': { target: true, value: 'Value or {variable}', field: true, secretable: true, grid: true },
     Select: { target: true, value: 'Option text', field: true },
     'Press Enter': { target: true, value: null, field: true, grid: true },
     'Verify text appears': { target: false, value: 'Text that must appear', verify: true },
@@ -100,6 +103,7 @@
         case 'Double-click': return 'Double-click ' + where;
         case 'Right-click': return 'Right-click ' + where;
         case 'Type': return 'Type “' + (shown || '…') + '” into ' + where;
+        case 'Type and press Enter': return 'Type “' + (shown || '…') + '” into ' + where + ', then press Enter';
         case 'Press Enter': return 'Press Enter in ' + where;
         case 'Verify element is visible': return 'Check that ' + where + ' is visible';
         case 'Verify element text': return 'Check that ' + where + ' contains “' + (shown || '…') + '”';
@@ -121,6 +125,8 @@
         return 'Save a value from text matching “' + (step.value || '…') + '”' + (step.target ? ' in ' + step.target : '');
       case 'Type':
         return 'Type “' + (shown || '…') + '” into ' + target;
+      case 'Type and press Enter':
+        return 'Type “' + (shown || '…') + '” into ' + target + ', then press Enter';
       case 'Select':
         return 'Select “' + (shown || '…') + '” in ' + target;
       case 'Press Enter':

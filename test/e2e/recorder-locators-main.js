@@ -23,16 +23,18 @@ async function record(url, actions) {
     wc.sendInputEvent({ type: 'mouseUp', x: p.x, y: p.y, button: 'left', clickCount: 1 });
     await wait(300);
   };
-  const type = async (selector, text) => {
+  const type = async (selector, text, commit) => {
     await click(selector);
     for (const ch of text) wc.sendInputEvent({ type: 'char', keyCode: ch });
-    wc.sendInputEvent({ type: 'keyDown', keyCode: 'Tab' });
-    wc.sendInputEvent({ type: 'keyUp', keyCode: 'Tab' });
+    const key = commit ? 'Enter' : 'Tab';
+    wc.sendInputEvent({ type: 'keyDown', keyCode: key });
+    if (commit) wc.sendInputEvent({ type: 'char', keyCode: '\r' });
+    wc.sendInputEvent({ type: 'keyUp', keyCode: key });
     await wait(300);
   };
   for (const [kind, selector, text] of actions) {
     if (kind === 'click') await click(selector);
-    else await type(selector, text);
+    else await type(selector, text, kind === 'enter');
   }
   recorder.stop();
   return steps.slice(1).map((s) => ({ action: s.action, target: s.target, locator: s.locator, value: s.value }));
@@ -56,7 +58,8 @@ app.whenReady().then(async () => {
   ]));
   steps.push(...await record(base + '/login.html', [
     ['type', '#user', 'alice'],
-    ['click', '[data-testid=sign-in]']
+    ['click', '[data-testid=sign-in]'],
+    ['enter', '#pass', 'correct-horse']
   ]));
   process.stdout.write('STEPS ' + JSON.stringify(steps) + '\n');
 

@@ -19,6 +19,10 @@ const EXPECTED = [
   "getByText('?')",
   "getByText('No href')",
   "getByRole('textbox', { name: 'Username' })",
+  "getByTestId('sign-in')",
+  // Typing in the password box and pressing Enter. The browser submits the form the same way as
+  // pressing the button, so it reports a click on it too, and the recorder keeps that.
+  "getByRole('textbox', { name: 'Password' })",
   "getByTestId('sign-in')"
 ];
 
@@ -54,6 +58,10 @@ const EXPECTED = [
     assert.equal(steps[3].action, 'Type');
     assert.equal(steps[3].value, 'Ada');
     assert.equal(steps[5].target, 'Remove');
+    // Typing then Enter in the same field is one step, not Type followed by Press Enter.
+    assert.equal(steps[13].action, 'Type and press Enter');
+    assert.equal(steps[13].value, 'correct-horse');
+    assert.ok(!steps.some((s) => s.action === 'Press Enter'), 'the Enter was folded into the Type step');
   } catch (e) {
     failed = true;
     console.error(e.message);

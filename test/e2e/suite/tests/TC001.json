@@ -125,6 +125,26 @@
       "locators": null
     },
     {
+      "id": "s1-17",
+      "action": "Type and press Enter",
+      "target": "Country",
+      "recordedTarget": "Country",
+      "value": "South Africa",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s1-18",
+      "action": "Verify field value",
+      "target": "Country",
+      "recordedTarget": "Country",
+      "value": "South Africa",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
       "id": "s16",
       "action": "Click",
       "target": "Subscribe to updates",

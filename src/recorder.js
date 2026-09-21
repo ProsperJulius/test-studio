@@ -100,8 +100,14 @@ ipcMain.on('rec:event', (event, ev) => {
   }
   const last = steps[steps.length - 1];
   const sameField = last && last.action === 'Type' && ev.action === 'Type' && sameTarget(last, ev);
+  // Enter straight after typing in the same field is one thing the tester did, so it is one step.
+  // Two steps meant finding the field twice, and the second could land somewhere else if the first
+  // changed the page.
+  const commits = last && last.action === 'Type' && ev.action === 'Press Enter' && sameTarget(last, ev);
   if (sameField) {
     last.value = ev.value;
+  } else if (commits) {
+    last.action = 'Type and press Enter';
   } else {
     const step = makeStep(ev);
     steps.push(step);

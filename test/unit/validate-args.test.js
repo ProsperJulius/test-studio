@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { validateSuite } = require('../../src/validate');
 const { parseArgs } = require('../../src/cli-args');
-const { ACTIONS, describeStep, expectedResult, usesGrid } = require('../../src/describe');
+const { ACTIONS, describeStep, expectedResult, usesGrid, metaFor } = require('../../src/describe');
 
 test('validateSuite reports errors and warnings', () => {
   const data = {
@@ -173,4 +173,29 @@ test('a step with a locator is a locator step, even if a grid target is left ove
   // The leftover grid target is not validated as if it were the step's target.
   const p = validateSuite({ blocks: [], tests: [{ id: 'T', steps: [step] }] }, []);
   assert.deepEqual(p.filter((x) => x.where === 'T step 1' && x.level === 'error'), []);
+});
+
+test('Type and press Enter is one step that types a value and commits it', () => {
+  const grid = { grid: { label: 'Orders' }, part: 'cell', column: { colId: 'notes', header: 'Notes' },
+    row: { mode: 'match', match: 'equals', column: { colId: 'orderId', header: 'Order ID' }, value: '1001' } };
+
+  assert.ok(ACTIONS.includes('Type and press Enter'));
+  // It types into a field, so it takes a value and can be hidden, like Type.
+  const meta = metaFor('Type and press Enter');
+  assert.deepEqual([meta.field, meta.grid, meta.secretable, !!meta.verify], [true, true, true, false]);
+
+  assert.equal(describeStep({ action: 'Type and press Enter', target: 'Search', value: 'widgets' }),
+    'Type “widgets” into Search, then press Enter');
+  assert.equal(describeStep({ action: 'Type and press Enter', value: 'ACME', grid }),
+    'Type “ACME” into “Notes” in the Orders grid, row where Order ID is “1001”, then press Enter');
+  assert.equal(describeStep({ action: 'Type and press Enter', target: 'Password', value: 'hunter2', secret: true }),
+    'Type “••••••••” into Password, then press Enter');
+
+  // It needs a value, and a step with none is reported the same way a Type with none is.
+  const p = validateSuite({ blocks: [], tests: [{ id: 'T', steps: [
+    { action: 'Type and press Enter', target: 'Search', value: '' },
+    { action: 'Verify text appears', value: 'ok' }
+  ] }] }, []);
+  assert.ok(p.some((x) => x.where === 'T step 1' && /No value is set/.test(x.message)));
+  assert.ok(!p.some((x) => x.where === 'T step 1' && /Unknown action/.test(x.message)));
 });

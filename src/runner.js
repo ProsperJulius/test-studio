@@ -114,13 +114,25 @@ function studioAct(loc, action, value, fieldAction) {
     }
     case 'Read text':
       return { ok: true, used, text: norm(el.innerText || el.value) };
-    case 'Type': {
+    case 'Type':
+    case 'Type and press Enter': {
       el.focus();
-      if (el.isContentEditable) {
+      if (el instanceof HTMLSelectElement) {
+        // Typing into a dropdown picks the option that matches, the way typing into one that has
+        // the focus does in a browser. The Select action does the same thing on its own.
+        const opt = Array.from(el.options).find((o) => o.value === value || norm(o.text) === norm(value));
+        if (!opt) return { ok: false, used, reason: 'Option “' + value + '” is not available in ' + wanted + '.' };
+        Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(el, opt.value);
+      } else if (el.isContentEditable) {
         el.innerText = value;
       } else {
         const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
-        Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, value);
+        try {
+          Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, value);
+        } catch (e) {
+          // Without this the error leaves the page and is reported as the page still loading.
+          return { ok: false, fatal: true, used, reason: wanted + ' is a ' + el.nodeName.toLowerCase() + ', which cannot be typed into.' };
+        }
       }
       el.dispatchEvent(new Event('input', { bubbles: true }));
       el.dispatchEvent(new Event('change', { bubbles: true }));
@@ -278,7 +290,7 @@ function studioGrid(g, rowValue, action, value, scanId) {
     // reported as missing: wait for them instead.
     const loading = () => root.querySelector('.ag-row-loading, .ag-row .ag-loading, .ag-skeleton-container');
     // Checks do not change the grid, so only these actions open collapsed folders on a path.
-    const opensFolders = ['Click', 'Double-click', 'Right-click', 'Type', 'Press Enter'].includes(action);
+    const opensFolders = ['Click', 'Double-click', 'Right-click', 'Type', 'Type and press Enter', 'Press Enter'].includes(action);
     const rowSel = () => st.rowId != null ? '.ag-row[row-id="' + esc(st.rowId) + '"]' : '.ag-row[row-index="' + esc(st.rowIndex) + '"]';
     if (st.rowId == null && st.rowIndex == null || !root.querySelector(rowSel())) {
       // The row that was found has gone, so search the whole grid again.
@@ -435,15 +447,27 @@ function studioGrid(g, rowValue, action, value, scanId) {
       const actual = norm(cell.innerText);
       return actual.includes(norm(value)) ? { ok: true, used: 'grid' } : { ok: false, used: 'grid', reason: 'The “' + colName(column) + '” cell shows “' + actual.slice(0, 200) + '”, expected it to contain “' + norm(value) + '”.' };
     }
-    const editor = cell.querySelector('input:not([type=checkbox]):not([type=radio]),textarea,[contenteditable="true"]');
-    if (action === 'Type' && !editor) {
+    const editor = cell.querySelector('input:not([type=checkbox]):not([type=radio]),textarea,select,[contenteditable="true"]');
+    const typing = action === 'Type' || action === 'Type and press Enter';
+    if (typing && !editor) {
       // Open the cell editor with a double-click, once, then type on the next call.
       if (st.editTried) return { ok: false, reason: 'The “' + colName(column) + '” cell did not open for editing. Check that the column is editable.' };
       wantEdit = true;
-    } else if (action === 'Type') {
+    } else if (typing) {
       editor.focus();
-      if (editor.isContentEditable) editor.innerText = value;
-      else Object.getOwnPropertyDescriptor(editor instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype, 'value').set.call(editor, value);
+      if (editor instanceof HTMLSelectElement) {
+        const opt = Array.from(editor.options).find((o) => o.value === value || norm(o.text) === norm(value));
+        if (!opt) return { ok: false, used: 'grid', reason: 'Option “' + value + '” is not available in the “' + colName(column) + '” cell.' };
+        Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(editor, opt.value);
+      } else if (editor.isContentEditable) {
+        editor.innerText = value;
+      } else {
+        try {
+          Object.getOwnPropertyDescriptor(editor instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype, 'value').set.call(editor, value);
+        } catch (e) {
+          return { ok: false, fatal: true, used: 'grid', reason: 'The “' + colName(column) + '” cell cannot be typed into.' };
+        }
+      }
       editor.dispatchEvent(new Event('input', { bubbles: true }));
       editor.dispatchEvent(new Event('change', { bubbles: true }));
       return { ok: true, used: 'grid' };
@@ -454,9 +478,9 @@ function studioGrid(g, rowValue, action, value, scanId) {
     }
   }
 
-  if (part === 'floating-filter' && (action === 'Type' || action === 'Press Enter')) {
+  if (part === 'floating-filter' && (action === 'Type' || action === 'Type and press Enter' || action === 'Press Enter')) {
     el.focus();
-    if (action === 'Type') {
+    if (action !== 'Press Enter') {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, value);
       el.dispatchEvent(new Event('input', { bubbles: true }));
       el.dispatchEvent(new Event('change', { bubbles: true }));
@@ -666,8 +690,9 @@ async function gridStep(wc, step, ctx, value, vars, timeout) {
   }, timeout);
   if (!res.ok) throw new Error(res.reason || 'The grid step could not be completed.');
   if (res.mouse) await mouseAt(wc, res.mouse, step.action);
-  if (step.action === 'Press Enter') pressEnter(wc);
-  if (res.mouse || step.action === 'Press Enter') await settle(wc, ctx.beforeCapture);
+  const entering = step.action === 'Press Enter' || step.action === 'Type and press Enter';
+  if (entering) pressEnter(wc);
+  if (res.mouse || entering) await settle(wc, ctx.beforeCapture);
   return { used: 'grid' };
 }
 
@@ -699,6 +724,7 @@ async function executeStep(wc, step, ctx) {
     case 'Double-click':
     case 'Right-click':
     case 'Type':
+    case 'Type and press Enter':
     case 'Select':
     case 'Press Enter':
     case 'Verify element is visible':
@@ -711,7 +737,7 @@ async function executeStep(wc, step, ctx) {
       const res = await tryUntil(() => act(wc, ctx, loc, step.action, value, !!meta.field), timeout);
       if (!res.ok) throw new Error(res.reason || 'The step could not be completed.');
       if (res.mouse) await mouseAt(wc, res.mouse, step.action);
-      if (step.action === 'Press Enter') pressEnter(wc);
+      if (step.action === 'Press Enter' || step.action === 'Type and press Enter') pressEnter(wc);
       if (!meta.verify) await settle(wc, ctx.beforeCapture);
       return { used: res.used, quality: loc.ast ? loc.quality : null };
     }

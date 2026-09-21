@@ -1,6 +1,6 @@
 {
   "id": "TC013",
-  "title": "Grid: find a row by part of a name, edit a cell with one step, check a row is absent",
+  "title": "Grid: find a row by part of a name, edit a cell in two steps and in one, check a row is absent",
   "tags": [
     "grid"
   ],
@@ -232,6 +232,68 @@
             "header": "Customer"
           },
           "value": "Nobody Ltd"
+        },
+        "inner": null
+      }
+    },
+    {
+      "id": "s138",
+      "action": "Type and press Enter",
+      "target": "Notes",
+      "recordedTarget": "Notes",
+      "value": "Edited in one step",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": "Orders"
+        },
+        "part": "cell",
+        "column": {
+          "colId": "notes",
+          "header": "Notes"
+        },
+        "row": {
+          "mode": "match",
+          "match": "contains",
+          "column": {
+            "colId": "customer",
+            "header": "Customer"
+          },
+          "value": "customer 12"
+        },
+        "inner": null
+      }
+    },
+    {
+      "id": "s139",
+      "action": "Verify element text",
+      "target": "Notes",
+      "recordedTarget": "Notes",
+      "value": "Edited in one step",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": "Orders"
+        },
+        "part": "cell",
+        "column": {
+          "colId": "notes",
+          "header": "Notes"
+        },
+        "row": {
+          "mode": "match",
+          "match": "contains",
+          "column": {
+            "colId": "customer",
+            "header": "Customer"
+          },
+          "value": "customer 12"
         },
         "inner": null
       }
