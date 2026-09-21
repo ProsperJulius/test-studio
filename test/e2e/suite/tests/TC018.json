@@ -1,0 +1,240 @@
+{
+  "id": "TC018",
+  "title": "Grid: act on a column that is wider than the space it is shown in",
+  "tags": [
+    "grid"
+  ],
+  "priority": "P2",
+  "requirement": "",
+  "approval": "Approved",
+  "startUrl": "/wide-column.html",
+  "steps": [
+    {
+      "id": "s180",
+      "action": "Open page",
+      "target": "contacts page",
+      "recordedTarget": "contacts page",
+      "value": "/wide-column.html",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s181",
+      "action": "Verify element text",
+      "target": "City",
+      "recordedTarget": "City",
+      "value": "City 42",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": "Contacts"
+        },
+        "part": "cell",
+        "column": {
+          "colId": "city",
+          "header": "City"
+        },
+        "row": {
+          "mode": "match",
+          "match": "equals",
+          "column": {
+            "colId": "id",
+            "header": "ID"
+          },
+          "value": "42"
+        },
+        "inner": null
+      }
+    },
+    {
+      "id": "s182",
+      "action": "Click",
+      "target": "Name",
+      "recordedTarget": "Name",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": "Contacts"
+        },
+        "part": "cell",
+        "column": {
+          "colId": "name",
+          "header": "Name"
+        },
+        "row": {
+          "mode": "match",
+          "match": "equals",
+          "column": {
+            "colId": "id",
+            "header": "ID"
+          },
+          "value": "42"
+        },
+        "inner": null
+      }
+    },
+    {
+      "id": "s183",
+      "action": "Verify element text",
+      "target": "Name",
+      "recordedTarget": "Name",
+      "value": "Contact number 42",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": "Contacts"
+        },
+        "part": "cell",
+        "column": {
+          "colId": "name",
+          "header": "Name"
+        },
+        "row": {
+          "mode": "match",
+          "match": "equals",
+          "column": {
+            "colId": "id",
+            "header": "ID"
+          },
+          "value": "42"
+        },
+        "inner": null
+      }
+    },
+    {
+      "id": "s184",
+      "action": "Type",
+      "target": "Name",
+      "recordedTarget": "Name",
+      "value": "Renamed here",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": "Contacts"
+        },
+        "part": "cell",
+        "column": {
+          "colId": "name",
+          "header": "Name"
+        },
+        "row": {
+          "mode": "match",
+          "match": "equals",
+          "column": {
+            "colId": "id",
+            "header": "ID"
+          },
+          "value": "42"
+        },
+        "inner": null
+      }
+    },
+    {
+      "id": "s185",
+      "action": "Press Enter",
+      "target": "Name",
+      "recordedTarget": "Name",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": "Contacts"
+        },
+        "part": "cell",
+        "column": {
+          "colId": "name",
+          "header": "Name"
+        },
+        "row": {
+          "mode": "match",
+          "match": "equals",
+          "column": {
+            "colId": "id",
+            "header": "ID"
+          },
+          "value": "42"
+        },
+        "inner": null
+      }
+    },
+    {
+      "id": "s186",
+      "action": "Verify element text",
+      "target": "Name",
+      "recordedTarget": "Name",
+      "value": "Renamed here",
+      "secret": false,
+      "shot": true,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": "Contacts"
+        },
+        "part": "cell",
+        "column": {
+          "colId": "name",
+          "header": "Name"
+        },
+        "row": {
+          "mode": "match",
+          "match": "equals",
+          "column": {
+            "colId": "id",
+            "header": "ID"
+          },
+          "value": "42"
+        },
+        "inner": null
+      }
+    },
+    {
+      "id": "s187",
+      "action": "Verify element text",
+      "target": "Actions",
+      "recordedTarget": "Actions",
+      "value": "Edit",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": "Contacts"
+        },
+        "part": "cell",
+        "column": {
+          "colId": "action",
+          "header": "Actions"
+        },
+        "row": {
+          "mode": "match",
+          "match": "equals",
+          "column": {
+            "colId": "id",
+            "header": "ID"
+          },
+          "value": "42"
+        },
+        "inner": null
+      }
+    }
+  ]
+}

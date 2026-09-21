@@ -454,6 +454,17 @@ function studioGrid(g, rowValue, action, value, scanId) {
 
   // Mouse actions: make sure the element is inside the visible part of the grid first.
   const rect = el.getBoundingClientRect();
+  // How far to scroll to bring lo..hi inside min..max. A cell can be wider or taller than the space
+  // it is shown in — a long name or tree column between pinned columns, or a row under sticky folder
+  // rows — and then it never fits. Line its leading edge up and work with the part that shows,
+  // instead of scrolling one edge into view and the other out of it for ever.
+  const shift = (lo, hi, min, max) => {
+    if (hi - lo >= max - min) return lo > min ? lo - min : hi < max ? hi - max : 0;
+    if (lo < min) return lo - min - 4;
+    if (hi > max) return hi - max + 4;
+    return 0;
+  };
+  let band = null;
   if (vp && part === 'cell') {
     const box = vp.getBoundingClientRect();
     // In AG Grid 36 the header and the scrollbars are inside the viewport, so use the area rows are shown in.
@@ -475,8 +486,9 @@ function studioGrid(g, rowValue, action, value, scanId) {
         if (r.height && !s.classList.contains('ag-hidden')) v.bottom = Math.min(v.bottom, r.top);
       }
     }
-    if (rect.top < v.top || rect.bottom > v.bottom) {
-      vp.scrollTop += rect.top < v.top ? rect.top - v.top - 4 : rect.bottom - v.bottom + 4;
+    const dy = shift(rect.top, rect.bottom, v.top, v.bottom);
+    if (dy) {
+      vp.scrollTop += dy;
       return { ok: false, scrolled: true, reason: 'Could not scroll to the “' + colName(column) + '” cell.' };
     }
     const pinned = el.closest('.ag-pinned-left-cols-container,.ag-pinned-right-cols-container,.ag-grid-pinned-left-cells,.ag-grid-pinned-right-cells');
@@ -491,15 +503,25 @@ function studioGrid(g, rowValue, action, value, scanId) {
       const right = edge('.ag-grid-pinned-right-cells');
       c = { left: left ? left.right : v.left, right: right ? right.left : v.right };
     }
+    band = { top: v.top, bottom: v.bottom, left: v.left, right: v.right };
     if (c && hp && !pinned) {
-      if (rect.left < c.left || rect.right > c.right) {
-        hp.scrollLeft += rect.left < c.left ? rect.left - c.left - 4 : rect.right - c.right + 4;
+      band.left = Math.max(v.left, c.left);
+      band.right = Math.min(v.right, c.right);
+      const dx = shift(rect.left, rect.right, band.left, band.right);
+      if (dx) {
+        hp.scrollLeft += dx;
         return { ok: false, scrolled: true, reason: 'Could not scroll to the “' + colName(column) + '” cell.' };
       }
     }
   }
-  const x = rect.left + rect.width / 2;
-  const y = rect.top + rect.height / 2;
+  // Aim at the middle of the part that is showing, which is not the middle of an oversized cell.
+  const within = (n, lo, hi) => Math.min(Math.max(n, lo), Math.max(lo, hi));
+  let x = rect.left + rect.width / 2;
+  let y = rect.top + rect.height / 2;
+  if (band) {
+    x = within(x, Math.max(rect.left, band.left) + 2, Math.min(rect.right, band.right) - 2);
+    y = within(y, Math.max(rect.top, band.top) + 2, Math.min(rect.bottom, band.bottom) - 2);
+  }
   const hit = document.elementFromPoint(x, y);
   if (!hit || !(hit === el || el.contains(hit) || (el.closest('.ag-cell') && el.closest('.ag-cell').contains(hit)))) {
     return { ok: false, reason: 'The “' + colName(column) + '” ' + (part === 'cell' ? 'cell' : 'header') + ' is covered by another element.' };

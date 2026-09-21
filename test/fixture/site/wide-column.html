@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Contacts – Shop</title>
+  <link rel="stylesheet" href="/vendor/ag-grid/styles/ag-grid.css">
+  <link rel="stylesheet" href="/vendor/ag-grid/styles/ag-theme-quartz.css">
+</head>
+<body>
+  <h2>Contacts</h2>
+  <!-- The Name column is wider than the space between the pinned columns, so one of its cells can
+       never be shown in full. Acting on it must still work, on whichever part of it is showing. -->
+  <div id="grid" class="ag-theme-quartz" style="height: 400px; width: 700px;"></div>
+
+  <script src="/vendor/ag-grid/dist/ag-grid-community.min.js"></script>
+  <script>
+    const rows = Array.from({ length: 100 }, (_, i) => ({
+      id: String(i),
+      name: 'Contact number ' + i + ' with a very long display name indeed',
+      email: 'contact' + i + '@example.com',
+      city: 'City ' + i,
+      action: 'Edit'
+    }));
+    agGrid.createGrid(document.getElementById('grid'), {
+      rowData: rows,
+      columnDefs: [
+        { headerName: 'ID', field: 'id', pinned: 'left', width: 120 },
+        { headerName: 'Name', field: 'name', width: 900, editable: true },
+        { headerName: 'Email', field: 'email', width: 260 },
+        { headerName: 'City', field: 'city', width: 200 },
+        { headerName: 'Actions', field: 'action', pinned: 'right', width: 120 }
+      ]
+    });
+  </script>
+</body>
+</html>
