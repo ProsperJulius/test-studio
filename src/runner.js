@@ -338,7 +338,9 @@ function studioGrid(g, rowValue, action, value, scanId) {
           if (path.length === parts.length) { row = rowEl; st.path = null; break; }
           const collapsed = rowEl.getAttribute('aria-expanded') === 'false' || c.getAttribute('aria-expanded') === 'false';
           const arrow = collapsed && Array.from(c.querySelectorAll('.ag-group-contracted')).find((a) => !a.classList.contains('ag-hidden'));
-          if (arrow && opensFolders) {
+          // One open per folder on the path, with room to spare for a grid that redraws. A folder
+          // that never opens is reported as collapsed below rather than clicked for ever.
+          if (arrow && opensFolders && (st.opens = (st.opens || 0) + 1) <= 40) {
             arrow.click();
             st.path = null;
             st.v = 'start';
@@ -355,7 +357,10 @@ function studioGrid(g, rowValue, action, value, scanId) {
         const box = vp && vp.getBoundingClientRect();
         const inView = (el) => { const b = el.getBoundingClientRect(); return b.height > 0 && (!box || (b.bottom > box.top && b.top < box.bottom)); };
         const shown = rows.filter((x) => inView(x.row));
-        if (!row && (!shown.length || shown.some((x) => Number(x.row.getAttribute('row-index')) > p.last))) {
+        // Waiting for a gap to be drawn is given up on in the end, so a row the grid never draws
+        // leaves the step with its own timeout rather than the long one that scrolling gets.
+        p.gaps = (p.gaps || 0) + 1;
+        if (!row && p.gaps < 80 && (!shown.length || shown.some((x) => Number(x.row.getAttribute('row-index')) > p.last))) {
           // Give the grid time to draw; if a gap stays, scroll back a little in case a page was skipped.
           p.gapWait = (p.gapWait || 0) + 1;
           if (p.gapWait > 8 && vp) {
@@ -471,6 +476,22 @@ function studioGrid(g, rowValue, action, value, scanId) {
     if (hi > max) return hi - max + 4;
     return 0;
   };
+  // A cell with no size is being redrawn or is not shown at all. Scrolling cannot help, so say so
+  // rather than scrolling towards a rectangle at 0,0 until the step runs out of time.
+  if (part === 'cell' && (!rect.width || !rect.height)) {
+    return { ok: false, reason: 'The “' + colName(column) + '” cell is not being shown in ' + gridName + '.' };
+  }
+  // Bringing one cell into view takes a few goes, so it does not get the long grace period that
+  // searching a whole grid does, and it stops as soon as the grid will not scroll any further.
+  // Without both, a grid whose scrolling is driven from somewhere else, or a layout that shifts as
+  // it is scrolled, leaves the step scrolling until that grace runs out.
+  st.fits = (st.fits || 0) + 1;
+  const fitting = st.fits <= 20;
+  const scrollBy = (el, prop, by) => {
+    const was = el[prop];
+    el[prop] += by;
+    return el[prop] !== was;
+  };
   let band = null;
   if (vp && part === 'cell') {
     const box = vp.getBoundingClientRect();
@@ -497,9 +518,8 @@ function studioGrid(g, rowValue, action, value, scanId) {
         if (r.height && !s.classList.contains('ag-hidden')) v.bottom = Math.min(v.bottom, r.top);
       }
     }
-    const dy = shift(rect.top, rect.bottom, v.top, v.bottom);
-    if (dy) {
-      vp.scrollTop += dy;
+    const dy = v.bottom > v.top ? shift(rect.top, rect.bottom, v.top, v.bottom) : 0;
+    if (dy && fitting && scrollBy(vp, 'scrollTop', dy)) {
       return { ok: false, scrolled: true, reason: 'Could not scroll to the “' + colName(column) + '” cell.' };
     }
     const pinned = el.closest('.ag-pinned-left-cols-container,.ag-pinned-right-cols-container,.ag-grid-pinned-left-cells,.ag-grid-pinned-right-cells');
@@ -518,9 +538,8 @@ function studioGrid(g, rowValue, action, value, scanId) {
     if (c && hp && !pinned) {
       band.left = Math.max(v.left, c.left);
       band.right = Math.min(v.right, c.right);
-      const dx = shift(rect.left, rect.right, band.left, band.right);
-      if (dx) {
-        hp.scrollLeft += dx;
+      const dx = band.right > band.left ? shift(rect.left, rect.right, band.left, band.right) : 0;
+      if (dx && fitting && scrollBy(hp, 'scrollLeft', dx)) {
         return { ok: false, scrolled: true, reason: 'Could not scroll to the “' + colName(column) + '” cell.' };
       }
     }
@@ -535,7 +554,12 @@ function studioGrid(g, rowValue, action, value, scanId) {
   }
   const hit = document.elementFromPoint(x, y);
   if (!hit || !(hit === el || el.contains(hit) || (el.closest('.ag-cell') && el.closest('.ag-cell').contains(hit)))) {
-    return { ok: false, reason: 'The “' + colName(column) + '” ' + (part === 'cell' ? 'cell' : 'header') + ' is covered by another element.' };
+    // Outside the area rows are shown in means the grid would not scroll to it; inside it means
+    // something is drawn on top. They need different things done about them, so name them apart.
+    const outside = band && (rect.bottom <= band.top || rect.top >= band.bottom || rect.right <= band.left || rect.left >= band.right);
+    return { ok: false, reason: outside
+      ? 'The “' + colName(column) + '” cell could not be brought into view in ' + gridName + '. The grid stopped scrolling before reaching it.'
+      : 'The “' + colName(column) + '” ' + (part === 'cell' ? 'cell' : 'header') + ' is covered by another element.' };
   }
   if (wantEdit) {
     st.editTried = true;
