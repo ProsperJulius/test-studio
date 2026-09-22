@@ -105,6 +105,12 @@ function cli(args, env = {}) {
     assert.equal(byId.TC023.status, 'Failed');
     assert.match(byId.TC023.failure.error, /the right part of the application looks to be on screen/);
     assert.match(byId.TC023.failure.error, /“estimate-amount”|“estimate-apply”/);
+    // The step before it passed without doing anything, which is what the failure should point at.
+    assert.match(byId.TC023.failure.error, /Step 2 passed, but a step reports only that its own action was carried out/);
+    // And the page as that step left it is kept, so it can be looked at.
+    const tc023 = inRun('TC023').steps.find((s) => s.status === 'failed');
+    assert.ok(tc023.beforeScreenshot, 'the page before the failing step is kept');
+    assert.ok(fs.statSync(path.join(latest.dir, tc023.beforeScreenshot)).size > 1000, 'and written out');
 
     // Everything TC024 works is inside a frame, and one of the controls is in a shadow root inside
     // that frame, so both boundaries are crossed on the same step.

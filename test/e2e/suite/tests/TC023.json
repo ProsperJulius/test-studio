@@ -1,6 +1,6 @@
 {
   "id": "TC023",
-  "title": "Expected failure: a test ID that is not on the page, on a screen that is",
+  "title": "Expected failure: a step passes without working, and the next one cannot find what it needed",
   "tags": [
     "locators"
   ],
@@ -18,6 +18,17 @@
       "secret": false,
       "shot": false,
       "locators": null
+    },
+    {
+      "id": "s252",
+      "action": "Click without checking",
+      "target": "Apply (not yet)",
+      "recordedTarget": "Apply (not yet)",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByTestId('apply-disabled')"
     },
     {
       "id": "s251",

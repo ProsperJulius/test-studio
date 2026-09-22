@@ -165,6 +165,24 @@ async function build(run, runDir, outFile) {
       children.push(para(expectedResult(st), { color: MUTED }));
       if (st.error) children.push(para('Actual: ' + st.error, { color: FAIL }));
 
+      // The page as the step before left it. A step nearly always fails on what came before it, and
+      // this is the picture that shows whether it did its job.
+      if (st.beforeScreenshot) {
+        const beforeFile = path.join(runDir, st.beforeScreenshot);
+        if (fs.existsSync(beforeFile)) {
+          children.push(para('The page before this step ran:', { color: MUTED }));
+          const buf = fs.readFileSync(beforeFile);
+          const { w, h } = pngSize(buf);
+          const width = Math.min(600, w);
+          children.push(
+            new Paragraph({
+              spacing: { after: 120 },
+              children: [new ImageRun({ type: 'png', data: buf, transformation: { width, height: Math.round((h / w) * width) } })]
+            })
+          );
+        }
+      }
+
       if (st.screenshot) {
         const file = path.join(runDir, st.screenshot);
         if (fs.existsSync(file)) {

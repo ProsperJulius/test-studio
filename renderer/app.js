@@ -566,6 +566,7 @@ function runHtml() {
             ${s.locator ? `<div class="locator-code">${esc(s.locator)}</div>` : ''}
             <div class="muted">${label}${s.ms ? ` in ${(s.ms / 1000).toFixed(1)}s` : ''}${s.fragile ? ' · <span class="txt-warn" title="Ask developers to add a data-testid to this element">found by its position or text, so it may break when the page changes</span>' : ''}</div>
             ${s.error ? `<div class="run-error">${esc(s.error)}</div>` : ''}
+            ${s.beforeScreenshot ? `<div class="muted">The page before this step ran: <button class="link-btn" data-act="open-image" data-file="${esc(s.beforeScreenshot)}">open the picture</button> — it shows what the step before left behind.</div>` : ''}
           </div>
           ${thumb ? `<button class="thumb" data-act="open-image" data-file="${esc(s.screenshot)}" aria-label="Open screenshot for step ${s.num}"><img src="${thumb}" alt=""></button>` : ''}
         </div>`;

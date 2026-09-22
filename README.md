@@ -34,7 +34,7 @@ npm run dist:linux   # Linux AppImage
 |---|---|
 | Tests | List, search, filter by tag, record, edit, run and delete tests. Run all approved tests or the filtered set. **Check suite** lists problems such as tests without checks, missing blocks and unknown test data. |
 | Step editor | Change actions, targets and values with dropdowns and text fields. Set tags, priority and the requirement or story. Hide secret values, toggle screenshots, save steps as a reusable block, submit for QA review and approve. |
-| Run | Live step-by-step progress with screenshots; click a thumbnail to enlarge. Shows retries, flaky tests, changes since the last run, and steps whose element was found only by position or text. |
+| Run | Live step-by-step progress with screenshots; click a thumbnail to enlarge. A step that fails also keeps the page as the step **before** it left things, since a step usually fails on what the one before it did or did not do. Shows retries, flaky tests, changes since the last run, and steps whose element was found only by position or text. |
 | Evidence preview | On-screen version of the Word document. |
 | Runs | History of every run: view, re-download the Word document, open the HTML report or the screenshot folder. |
 | Reusable blocks | Shared step sequences inserted into tests with the **Use block** action. |

@@ -888,11 +888,19 @@ async function executeStep(wc, step, ctx) {
   }
 }
 
-async function capture(wc, dir, fileName) {
+async function snapshot(wc) {
   const image = await wc.capturePage();
   if (image.isEmpty()) throw new Error('Empty screenshot');
+  return image;
+}
+
+function saveShot(image, dir, fileName) {
   fs.writeFileSync(path.join(dir, fileName), image.toPNG());
   return image.resize({ width: 320 }).toDataURL();
+}
+
+async function capture(wc, dir, fileName) {
+  return saveShot(await snapshot(wc), dir, fileName);
 }
 
 function freshSteps(template, blocks, variables, settings) {
@@ -906,6 +914,7 @@ function freshSteps(template, blocks, variables, settings) {
       status: 'pending',
       error: null,
       screenshot: null,
+      beforeScreenshot: null,
       ms: 0,
       locator: r.locator || null,
       locatedBy: null,
@@ -942,6 +951,9 @@ async function runAttempt({ t, ti, attempt, ctx, settings, run, dir, publish }) 
   const stepCtx = { ...ctx, page, consoleErrors: () => t.consoleErrors, vars: () => [...entries(runtime), ...entries(ctx.shared), ...ctx.variables] };
 
   let failed = false;
+  // The page as the step before left it, held and not written unless it is needed. A step usually
+  // fails on what the step before it did or did not do, and this is the picture that shows which.
+  let before = null;
   try {
     for (let si = 0; si < t.steps.length; si++) {
       const s = t.steps[si];
@@ -980,9 +992,24 @@ async function runAttempt({ t, ti, attempt, ctx, settings, run, dir, publish }) 
       } catch (e) {
         s.status = 'failed';
         s.error = e.message;
+        // A step reports only that its own action was carried out. When this one cannot find what
+        // it needs, and the step before was meant to put it there, say where to look.
+        const prev = si > 0 ? t.steps[si - 1] : null;
+        if (prev && prev.status === 'passed' && /Could not find/.test(s.error || '') && !metaFor(prev.action).verify) {
+          s.error += ' Step ' + prev.num + ' passed, but a step reports only that its own action was carried out.'
+            + ' If it did not produce what this step needs, that is where to look.';
+        }
         failed = true;
       }
       s.ms = Date.now() - started;
+
+      if (s.status === 'failed' && before) {
+        try {
+          const name = 't' + (ti + 1) + (attempt > 1 ? '-a' + attempt : '') + '-step' + String(si + 1).padStart(2, '0') + '-before.png';
+          saveShot(before, dir, name);
+          s.beforeScreenshot = name;
+        } catch (e) { /* the window may have closed */ }
+      }
 
       let thumb = null;
       if (!win.isDestroyed() && (s._step.shot || s.action === 'Take screenshot' || s.status === 'failed')) {
@@ -993,6 +1020,7 @@ async function runAttempt({ t, ti, attempt, ctx, settings, run, dir, publish }) 
           thumb = { key: ti + '-' + si, dataUrl };
         } catch (e) { /* window may have closed */ }
       }
+      before = win.isDestroyed() ? null : await snapshot(wc).catch(() => null);
       publish(thumb);
     }
   } finally {
