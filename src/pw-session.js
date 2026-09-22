@@ -46,7 +46,26 @@ async function missingHint(page, loc) {
         }
       };
       walk(document);
-      return { exact: Array.from(new Set(exact)), partial };
+      // What the page does hold, so "it was not there" can say whether the step was on the wrong
+      // screen or asking for the wrong name.
+      const all = [];
+      const collect = (root) => {
+        for (const el of root.querySelectorAll('*')) {
+          for (const a of attrs) {
+            const got = el.getAttribute(a);
+            if (got) all.push(got);
+          }
+          if (el.shadowRoot) collect(el.shadowRoot);
+        }
+      };
+      collect(document);
+      return {
+        exact: Array.from(new Set(exact)),
+        partial,
+        total: all.length,
+        related: Array.from(new Set(all.filter((x) => x.split(/[-_ ]/)[0] === v.split(/[-_ ]/)[0]))).slice(0, 5),
+        frames: document.querySelectorAll('iframe,frame').length
+      };
     }, [value, TEST_ID_ATTRS]);
   } catch (e) {
     return '';
@@ -58,7 +77,21 @@ async function missingHint(page, loc) {
   }
   if (seen.exact.length) return ' It is on the page now, so it appeared after the step gave up waiting.';
   if (seen.partial) return ' No element has exactly that test ID; ' + seen.partial + ' have one containing it.';
-  return ' Nothing on the page has that test ID under any name, so it was not there while the step waited.';
+
+  let why = ' Nothing on the page has that test ID under any name, so it was not there while the step waited.';
+  if (seen.related.length) {
+    // Other test IDs from the same part of the application are on screen, so the screen is right
+    // and the name is not.
+    why += ' The page does have ' + seen.related.map((x) => '“' + x + '”').join(', ') +
+      ', so the right part of the application looks to be on screen and the name may be wrong.';
+  } else if (seen.total) {
+    why += ' The page has ' + seen.total + ' other test ID(s), none of them from the same part of the application' +
+      ' — so the screen or dialog holding it was probably not open. The screenshot taken when this step failed shows what was.';
+  } else {
+    why += ' The page has no test IDs at all, so it may not have finished loading.';
+  }
+  if (seen.frames) why += ' It also has ' + seen.frames + ' frame(s), which steps do not look inside.';
+  return why;
 }
 
 // Playwright's own words for why it would not act, said the way the rest of the app says things.

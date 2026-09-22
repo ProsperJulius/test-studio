@@ -1,0 +1,34 @@
+{
+  "id": "TC023",
+  "title": "Expected failure: a test ID that is not on the page, on a screen that is",
+  "tags": [
+    "locators"
+  ],
+  "priority": "P2",
+  "requirement": "",
+  "approval": "Approved",
+  "startUrl": "/primeng.html",
+  "steps": [
+    {
+      "id": "s250",
+      "action": "Open page",
+      "target": "components page",
+      "recordedTarget": "components page",
+      "value": "/primeng.html",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s251",
+      "action": "Click",
+      "target": "Apply",
+      "recordedTarget": "Apply",
+      "value": "",
+      "secret": false,
+      "shot": true,
+      "locators": null,
+      "locator": "getByTestId('estimate-submit-button')"
+    }
+  ]
+}

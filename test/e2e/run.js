@@ -100,6 +100,12 @@ function cli(args, env = {}) {
     assert.match(byId.TC022.failure.error, /an element has data-test-id="adjustment-apply-button"/);
     assert.match(byId.TC022.failure.error, /Change the test ID attribute in Settings/);
 
+    // Nothing matched, but names from the same part of the application are on screen: the step is
+    // asking for the wrong name, not looking at the wrong screen.
+    assert.equal(byId.TC023.status, 'Failed');
+    assert.match(byId.TC023.failure.error, /the right part of the application looks to be on screen/);
+    assert.match(byId.TC023.failure.error, /“estimate-amount”|“estimate-apply”/);
+
     // Playwright-style locators and strict mode.
     assert.equal(byId.TC011.status, 'Passed', 'TC011: ' + JSON.stringify(byId.TC011.failure));
     assert.deepEqual(byId.TC011.fragileSteps, [14], 'the .nth() locator is reported as fragile');
@@ -111,7 +117,7 @@ function cli(args, env = {}) {
     assert.match(byId.TC017.failure.error, /“Proposal\.docx” is inside the collapsed folder “Documents”/);
 
     const junit = fs.readFileSync(path.join(latest.dir, 'junit.xml'), 'utf8');
-    assert.match(junit, /tests="22" failures="6"/);
+    assert.match(junit, /tests="23" failures="7"/);
     for (const f of ['report.html', 'evidence.docx', 'run.json']) assert.ok(fs.statSync(path.join(latest.dir, f)).size > 0, f);
 
     const shot = byId.TC003.failure.screenshot;
