@@ -46,6 +46,11 @@
     <button class="p-button" type="button" id="disabled-inner" disabled>Apply (not yet)</button>
   </p-button>
 
+  <!-- The other ways of working an element, each doing something only that way triggers. -->
+  <p data-testid="dbl-target">Double-click me</p>
+  <p data-testid="ctx-target">Right-click me</p>
+  <input data-testid="enter-field" type="text" placeholder="Press Enter here">
+
   <p-button data-testid="open-overlay"><button class="p-button" type="button">Open overlay</button></p-button>
 
   <!-- A host with no box of its own, holding a button that is on screen. -->
@@ -68,6 +73,12 @@
     document.getElementById('save-inner').addEventListener('click', () => { note.textContent = 'Saved'; });
     document.getElementById('floating-inner').addEventListener('click', () => { note.textContent = 'Floated'; });
     document.getElementById('dup-inner').addEventListener('click', () => { note.textContent = 'Twice clicked'; });
+
+    document.querySelector('[data-testid=dbl-target]').addEventListener('dblclick', () => { note.textContent = 'Double-clicked'; });
+    document.querySelector('[data-testid=ctx-target]').addEventListener('contextmenu', (e) => { e.preventDefault(); note.textContent = 'Right-clicked'; });
+    document.querySelector('[data-testid=enter-field]').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') note.textContent = 'Entered ' + e.target.value;
+    });
 
     // Shadow DOM: the button and the field below are not reachable from the page's own document.
     const panel = document.getElementById('panel');

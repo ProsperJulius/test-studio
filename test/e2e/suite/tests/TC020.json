@@ -212,6 +212,80 @@
       "locators": null
     },
     {
+      "id": "s221",
+      "action": "Double-click",
+      "target": "Double-click me",
+      "recordedTarget": "Double-click me",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByTestId('dbl-target')"
+    },
+    {
+      "id": "s222",
+      "action": "Verify text appears",
+      "target": "",
+      "recordedTarget": "",
+      "value": "Double-clicked",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s223",
+      "action": "Right-click",
+      "target": "Right-click me",
+      "recordedTarget": "Right-click me",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByTestId('ctx-target')"
+    },
+    {
+      "id": "s224",
+      "action": "Verify text appears",
+      "target": "",
+      "recordedTarget": "",
+      "value": "Right-clicked",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s225",
+      "action": "Type",
+      "target": "Press Enter here",
+      "recordedTarget": "Press Enter here",
+      "value": "note this",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByTestId('enter-field')"
+    },
+    {
+      "id": "s226",
+      "action": "Press Enter",
+      "target": "Press Enter here",
+      "recordedTarget": "Press Enter here",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByTestId('enter-field')"
+    },
+    {
+      "id": "s227",
+      "action": "Verify text appears",
+      "target": "",
+      "recordedTarget": "",
+      "value": "Entered note this",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
       "id": "s212",
       "action": "Click",
       "target": "Submit order",

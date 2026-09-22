@@ -653,9 +653,9 @@ async function exec(wc, fn, ...args) {
 // Steps recorded before locators existed still use the older hints, matched in the page as before.
 async function act(wc, ctx, loc, action, value, fieldAction, timeout) {
   if (!loc.ast) return exec(wc, studioAct, loc, action, value, fieldAction);
-  // Playwright does the clicking: it checks the element can really be clicked first, and finding it
-  // is its own job, so nothing has to survive a round trip to the page and back.
-  if (action === 'Click' || action === 'Click and press Enter') return pw.clickTarget(ctx.page, loc, action, timeout);
+  // Playwright carries out the actions: it checks the element can really be worked first, and
+  // finding it is its own job, so nothing has to survive a round trip to the page and back.
+  if (pw.PLAYWRIGHT_ACTS.includes(action)) return pw.actOnTarget(ctx.page, loc, action, value, timeout);
   const found = await pw.markTarget(ctx.page, loc, action);
   if (!found.ok || found.done) return found;
   return exec(wc, studioAct, { marked: true, source: loc.source }, action, value, fieldAction);
@@ -774,7 +774,7 @@ async function executeStep(wc, step, ctx) {
       const res = await tryUntil(() => act(wc, ctx, loc, step.action, value, !!meta.field, timeout), timeout);
       if (!res.ok) throw new Error(res.reason || 'The step could not be completed.');
       if (res.mouse) await mouseAt(wc, res.mouse, step.action);
-      if (['Press Enter', 'Type and press Enter', 'Click and press Enter'].includes(step.action)) pressEnter(wc);
+      if (!res.entered && ['Press Enter', 'Type and press Enter', 'Click and press Enter'].includes(step.action)) pressEnter(wc);
       if (!meta.verify) await settle(wc, ctx.beforeCapture);
       return { used: res.used, quality: loc.ast ? loc.quality : null };
     }

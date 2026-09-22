@@ -16,15 +16,20 @@ const CONTROL = 'button,a[href],input,select,textarea,[role=button],[role=link],
 // component, so those are left pointing at whatever the locator matched.
 const ACTS_ON_CONTROL = ['Click', 'Click and press Enter', 'Double-click', 'Right-click', 'Type', 'Type and press Enter', 'Select', 'Press Enter', 'Verify field value', 'Verify element is enabled', 'Verify element is disabled'];
 
-// Playwright's own words for why it would not click, said the way the rest of the app says things.
-function clickReason(e, source) {
+// Playwright's own words for why it would not act, said the way the rest of the app says things.
+function actReason(e, source, action, value) {
   const msg = String((e && e.message) || '');
-  if (/not enabled|is disabled/i.test(msg)) return source + ' is disabled, so it cannot be clicked.';
+  const clicking = /click/i.test(action);
+  if (/did not find some option|no such option/i.test(msg)) return 'Option “' + value + '” is not available in ' + source + '.';
+  if (/not a <select>/i.test(msg)) return source + ' is not a dropdown.';
+  if (/not an <input>|not an <input>, <textarea>|contenteditable/i.test(msg)) return source + ' is not a field that can be typed into.';
+  if (/not enabled|is disabled/i.test(msg)) return source + ' is disabled, so it cannot be ' + (clicking ? 'clicked' : 'used') + '.';
   if (/intercepts pointer events/i.test(msg)) return source + ' is covered by another element.';
   if (/not visible/i.test(msg)) return source + ' was found but is not visible.';
-  if (/not stable/i.test(msg)) return source + ' kept moving, so it could not be clicked.';
-  if (/Timeout/i.test(msg)) return source + ' could not be clicked before the step ran out of time.';
-  return source + ' could not be clicked: ' + msg.split('\n')[0];
+  if (/not editable/i.test(msg)) return source + ' cannot be edited.';
+  if (/not stable/i.test(msg)) return source + ' kept moving, so the step could not act on it.';
+  if (/Timeout/i.test(msg)) return 'The step could not act on ' + source + ' before it ran out of time.';
+  return 'The step could not act on ' + source + ': ' + msg.split('\n')[0];
 }
 
 // A component host can have no box of its own — display: contents, or an inline wrapper around a
@@ -168,18 +173,52 @@ async function markTarget(page, loc, action) {
   return { ok: true };
 }
 
-// Clicks through Playwright rather than from inside the page. Playwright waits for the element to
-// be visible, still, enabled and actually able to receive the click, and it finds the element
-// itself — so a click no longer depends on the page being able to see the tag, and a click that
-// could not have happened is reported instead of passing quietly.
-async function clickTarget(page, loc, action, timeout) {
+// The actions Playwright carries out itself. It waits for the element to be visible, still, enabled
+// and able to receive what is being done to it, and it finds the element on its own — so a step no
+// longer depends on the page being able to see the tag, and something that could not have happened
+// is reported instead of passing quietly.
+const PLAYWRIGHT_ACTS = ['Click', 'Click and press Enter', 'Double-click', 'Right-click', 'Press Enter', 'Select', 'Type', 'Type and press Enter'];
+
+async function actOnTarget(page, loc, action, value, timeout) {
   const found = await markTarget(page, loc, action);
   if (!found.ok || found.done) return found;
+  const target = page.locator('[' + MARK + ']');
+  const opts = { timeout: Math.max(1000, timeout) };
   try {
-    await page.locator('[' + MARK + ']').click({ timeout: Math.max(1000, timeout) });
-    return { ok: true, used: 'locator' };
+    switch (action) {
+      case 'Click':
+      case 'Click and press Enter':
+        await target.click(opts);
+        break;
+      case 'Double-click':
+        await target.dblclick(opts);
+        break;
+      case 'Right-click':
+        await target.click({ ...opts, button: 'right' });
+        break;
+      case 'Press Enter':
+        await target.press('Enter', opts);
+        break;
+      case 'Select':
+        await target.selectOption(value, opts);
+        break;
+      case 'Type':
+      case 'Type and press Enter': {
+        // Typing into a dropdown picks the option that matches, as it does in a browser; fill would
+        // refuse, because a dropdown is not something text goes into.
+        const dropdown = await target.evaluate((el) => el.tagName === 'SELECT').catch(() => false);
+        if (dropdown) await target.selectOption(value, opts);
+        else await target.fill(value, opts);
+        break;
+      }
+      default:
+        return { ok: false, fatal: true, reason: 'Unknown action “' + action + '”.' };
+    }
+    // Only the plain Press Enter is sent here. The composites send theirs as key input from the
+    // main process afterwards, so it reaches whatever the click or the typing left focused.
+    return { ok: true, used: 'locator', entered: action === 'Press Enter' };
   } catch (e) {
-    return { ok: false, reason: clickReason(e, loc.source) };
+    return { ok: false, reason: actReason(e, loc.source, action, value) };
   }
 }
 
@@ -188,4 +227,4 @@ async function close() {
   browser = null;
 }
 
-module.exports = { connect, setTestIdAttribute, pageForWebContents, markTarget, clickTarget, close, MARK };
+module.exports = { connect, setTestIdAttribute, pageForWebContents, markTarget, actOnTarget, PLAYWRIGHT_ACTS, close, MARK };
