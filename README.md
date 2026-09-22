@@ -45,7 +45,9 @@ npm run dist:linux   # Linux AppImage
 
 ## Step actions
 
-**Actions:** Open page, Click, Click and press Enter, Double-click, Right-click, Type, Type and press Enter, Select, Press Enter, Wait, Take screenshot, Use block, Save value from text.
+**Actions:** Open page, Click, Click and press Enter, Click without checking, Double-click, Right-click, Type, Type and press Enter, Select, Press Enter, Wait, Take screenshot, Use block, Save value from text.
+
+**Click without checking** is for a button whose own click takes the page apart under it — a dialog closing on Save, a screen replaced as it submits. It finds the element and clicks it, and decides nothing else: not whether the element looked clickable first, not what happened afterwards. That makes it the one action that cannot tell you the click did anything, so use it where an ordinary **Click** reports a problem you have looked at and decided is not one, and put a **Verify** step after it to say what should have changed.
 
 **Click and press Enter** and **Type and press Enter** each do in one step what two steps did before. Click and press Enter suits a list of suggestions, where clicking an option highlights it and only Enter takes it, and a grid cell that opens for editing on Enter once it has been picked.
 

@@ -14,7 +14,7 @@ const CONTROL = 'button,a[href],input,select,textarea,[role=button],[role=link],
 
 // Actions that work a control rather than read one. Reading text from a component means the
 // component, so those are left pointing at whatever the locator matched.
-const ACTS_ON_CONTROL = ['Click', 'Click and press Enter', 'Double-click', 'Right-click', 'Type', 'Type and press Enter', 'Select', 'Press Enter', 'Verify field value', 'Verify element is enabled', 'Verify element is disabled'];
+const ACTS_ON_CONTROL = ['Click', 'Click and press Enter', 'Click without checking', 'Double-click', 'Right-click', 'Type', 'Type and press Enter', 'Select', 'Press Enter', 'Verify field value', 'Verify element is enabled', 'Verify element is disabled'];
 
 // The attribute names teams use for test IDs. Only one is in force at a time — the one in Settings.
 const TEST_ID_ATTRS = ['data-testid', 'data-test', 'data-test-id', 'data-qa', 'data-cy', 'data-automation-id'];
@@ -282,7 +282,7 @@ async function markTarget(page, loc, action) {
 // and able to receive what is being done to it, and it finds the element on its own — so a step no
 // longer depends on the page being able to see the tag, and something that could not have happened
 // is reported instead of passing quietly.
-const PLAYWRIGHT_ACTS = ['Click', 'Click and press Enter', 'Double-click', 'Right-click', 'Press Enter', 'Select', 'Type', 'Type and press Enter'];
+const PLAYWRIGHT_ACTS = ['Click', 'Click and press Enter', 'Click without checking', 'Double-click', 'Right-click', 'Press Enter', 'Select', 'Type', 'Type and press Enter'];
 
 async function actOnTarget(page, loc, action, value, timeout) {
   const found = await markTarget(page, loc, action);
@@ -295,6 +295,12 @@ async function actOnTarget(page, loc, action, value, timeout) {
       case 'Click':
       case 'Click and press Enter':
         await target.click(opts);
+        break;
+      case 'Click without checking':
+        // force: send the click without first deciding whether the element looks clickable. Those
+        // checks are the "verifying" this action is asked to skip; the click itself is a real one,
+        // sent at the element's position. Whatever it sets off is not judged either — see the catch.
+        await target.click({ ...opts, force: true });
         break;
       case 'Double-click':
         await target.dblclick(opts);
@@ -324,6 +330,8 @@ async function actOnTarget(page, loc, action, value, timeout) {
     // main process afterwards, so it reaches whatever the click or the typing left focused.
     return { ok: true, used: 'locator', entered: action === 'Press Enter' };
   } catch (e) {
+    // The step said not to judge what the click set off, and the click was sent, so it is done.
+    if (action === 'Click without checking') return { ok: true, used: 'locator' };
     // A dialog that closes on its own button takes the button with it. Playwright then reports the
     // element as detached, or gives up waiting on it, when the application has already done what
     // the step asked for. Nothing else touched it, so if what was tagged has gone, the step worked.

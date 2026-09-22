@@ -42,7 +42,7 @@ function studioAct(loc, action, value, fieldAction) {
   // choice between several, and only for acting: reading text from a wrapper is still reading the
   // wrapper, which is what a step asking about it means.
   const controlSel = 'button,a[href],input,select,textarea,[role=button],[role=link],[contenteditable="true"],summary';
-  const ACTS_ON_CONTROL = ['Click', 'Click and press Enter', 'Double-click', 'Right-click', 'Type', 'Type and press Enter', 'Select', 'Press Enter', 'Verify field value', 'Verify element is enabled', 'Verify element is disabled'];
+  const ACTS_ON_CONTROL = ['Click', 'Click and press Enter', 'Click without checking', 'Double-click', 'Right-click', 'Type', 'Type and press Enter', 'Select', 'Press Enter', 'Verify field value', 'Verify element is enabled', 'Verify element is disabled'];
   const control = (el, action) => {
     if (!el || !ACTS_ON_CONTROL.includes(action) || el.matches(controlSel)) return el;
     let inner;
@@ -139,10 +139,11 @@ function studioAct(loc, action, value, fieldAction) {
   switch (action) {
     case 'Click':
     case 'Click and press Enter':
+    case 'Click without checking':
     case 'Double-click':
     case 'Right-click': {
       // AG Grid and its popups react to real mouse events; everything else keeps a plain click.
-      const plainClick = action === 'Click' || action === 'Click and press Enter';
+      const plainClick = ['Click', 'Click and press Enter', 'Click without checking'].includes(action);
       const needsMouse = !plainClick || !!el.closest('.ag-root-wrapper,.ag-popup,.ag-menu,.ag-popup-child');
       if (!needsMouse) { el.click(); break; }
       const r = el.getBoundingClientRect();
@@ -333,7 +334,7 @@ function studioGrid(g, rowValue, action, value, scanId) {
     // reported as missing: wait for them instead.
     const loading = () => root.querySelector('.ag-row-loading, .ag-row .ag-loading, .ag-skeleton-container');
     // Checks do not change the grid, so only these actions open collapsed folders on a path.
-    const opensFolders = ['Click', 'Click and press Enter', 'Double-click', 'Right-click', 'Type', 'Type and press Enter', 'Press Enter'].includes(action);
+    const opensFolders = ['Click', 'Click and press Enter', 'Click without checking', 'Double-click', 'Right-click', 'Type', 'Type and press Enter', 'Press Enter'].includes(action);
     const rowSel = () => st.rowId != null ? '.ag-row[row-id="' + esc(st.rowId) + '"]' : '.ag-row[row-index="' + esc(st.rowIndex) + '"]';
     if (st.rowId == null && st.rowIndex == null || !root.querySelector(rowSel())) {
       // The row that was found has gone, so search the whole grid again.
@@ -811,6 +812,7 @@ async function executeStep(wc, step, ctx) {
     }
     case 'Click':
     case 'Click and press Enter':
+    case 'Click without checking':
     case 'Double-click':
     case 'Right-click':
     case 'Type':

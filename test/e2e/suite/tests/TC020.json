@@ -286,6 +286,17 @@
       "locators": null
     },
     {
+      "id": "s228",
+      "action": "Click without checking",
+      "target": "Apply (not yet)",
+      "recordedTarget": "Apply (not yet)",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByTestId('apply-disabled')"
+    },
+    {
       "id": "s212",
       "action": "Click",
       "target": "Submit order",

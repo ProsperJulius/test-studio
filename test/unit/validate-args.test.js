@@ -220,3 +220,21 @@ test('Click and press Enter is one step that clicks a thing and commits it', () 
   assert.deepEqual(p.filter((x) => x.where === 'T step 1' && x.level === 'error'), []);
   assert.ok(!p.some((x) => x.where === 'T step 1' && /No value is set/.test(x.message)));
 });
+
+test('Click without checking clicks and does not judge what follows', () => {
+  assert.ok(ACTIONS.includes('Click without checking'));
+  // Like Click: no value, and it can be pointed at a grid cell.
+  const meta = metaFor('Click without checking');
+  assert.deepEqual([meta.value, meta.grid, !!meta.verify], [null, true, false]);
+  assert.equal(describeStep({ action: 'Click without checking', target: 'Apply' }),
+    'Click \u201cApply\u201d, without checking the result');
+  assert.equal(
+    describeStep({ action: 'Click without checking', grid: { grid: { label: 'Orders' }, part: 'cell', column: { header: 'Status' }, row: { mode: 'match', match: 'equals', column: { header: 'Order ID' }, value: '1001' } } }),
+    'Click \u201cStatus\u201d in the Orders grid, row where Order ID is \u201c1001\u201d, without checking the result'
+  );
+  const p = validateSuite({ blocks: [], tests: [{ id: 'T', steps: [
+    { action: 'Click without checking', target: 'Apply' },
+    { action: 'Verify text appears', value: 'ok' }
+  ] }] }, []);
+  assert.deepEqual(p.filter((x) => x.where === 'T step 1' && x.level === 'error'), []);
+});

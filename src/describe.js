@@ -12,6 +12,10 @@
     // Clicking and committing in one step: a suggestion list where the click highlights an option
     // and Enter takes it, or a grid cell that opens for editing on Enter after being picked.
     'Click and press Enter': { target: true, value: null, grid: true },
+    // For a button whose own click takes the page apart under it — a dialog closing on Save, a
+    // screen replaced as it submits. The element still has to be there and clickable; what the
+    // application does next is not judged, so the step cannot fail on the aftermath.
+    'Click without checking': { target: true, value: null, grid: true },
     'Double-click': { target: true, value: null, grid: true },
     'Right-click': { target: true, value: null, grid: true },
     Type: { target: true, value: 'Value or {variable}', field: true, secretable: true, grid: true },
@@ -104,6 +108,7 @@
       switch (step.action) {
         case 'Click': return 'Click ' + where;
         case 'Click and press Enter': return 'Click ' + where + ', then press Enter';
+        case 'Click without checking': return 'Click ' + where + ', without checking the result';
         case 'Double-click': return 'Double-click ' + where;
         case 'Right-click': return 'Right-click ' + where;
         case 'Type': return 'Type “' + (shown || '…') + '” into ' + where;
@@ -123,6 +128,8 @@
         return 'Click “' + target + '”';
       case 'Click and press Enter':
         return 'Click “' + target + '”, then press Enter';
+      case 'Click without checking':
+        return 'Click “' + target + '”, without checking the result';
       case 'Double-click':
         return 'Double-click “' + target + '”';
       case 'Right-click':
