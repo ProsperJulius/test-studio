@@ -16,6 +16,51 @@ const CONTROL = 'button,a[href],input,select,textarea,[role=button],[role=link],
 // component, so those are left pointing at whatever the locator matched.
 const ACTS_ON_CONTROL = ['Click', 'Click and press Enter', 'Double-click', 'Right-click', 'Type', 'Type and press Enter', 'Select', 'Press Enter', 'Verify field value', 'Verify element is enabled', 'Verify element is disabled'];
 
+// The attribute names teams use for test IDs. Only one is in force at a time — the one in Settings.
+const TEST_ID_ATTRS = ['data-testid', 'data-test', 'data-test-id', 'data-qa', 'data-cy', 'data-automation-id'];
+
+const testIdIn = (ast) => {
+  for (const call of ast || []) if (call.name === 'getByTestId' && typeof call.args[0] === 'string') return call.args[0];
+  return null;
+};
+
+// "Could not find it" is true but says nothing about why. Look at what the page does have, so the
+// failure tells the difference between the wrong attribute name, the wrong value, and an element
+// that was not there at all — which is the difference between fixing the step and fixing the test.
+async function missingHint(page, loc) {
+  const value = testIdIn(loc.ast);
+  if (!value) return '';
+  let seen;
+  try {
+    seen = await page.evaluate(([v, attrs]) => {
+      const exact = [];
+      let partial = 0;
+      const walk = (root) => {
+        for (const el of root.querySelectorAll('*')) {
+          for (const a of attrs) {
+            const got = el.getAttribute(a);
+            if (got === v) exact.push(a);
+            else if (got && got.includes(v)) partial++;
+          }
+          if (el.shadowRoot) walk(el.shadowRoot);
+        }
+      };
+      walk(document);
+      return { exact: Array.from(new Set(exact)), partial };
+    }, [value, TEST_ID_ATTRS]);
+  } catch (e) {
+    return '';
+  }
+  const other = seen.exact.filter((a) => a !== testIdAttribute);
+  if (other.length) {
+    return ' Nothing has ' + testIdAttribute + '="' + value + '", but an element has ' + other[0] + '="' + value +
+      '". Change the test ID attribute in Settings to ' + other[0] + '.';
+  }
+  if (seen.exact.length) return ' It is on the page now, so it appeared after the step gave up waiting.';
+  if (seen.partial) return ' No element has exactly that test ID; ' + seen.partial + ' have one containing it.';
+  return ' Nothing on the page has that test ID under any name, so it was not there while the step waited.';
+}
+
 // Playwright's own words for why it would not act, said the way the rest of the app says things.
 function actReason(e, source, action, value) {
   const msg = String((e && e.message) || '');
@@ -141,7 +186,7 @@ async function markTarget(page, loc, action) {
   if (count > 1) {
     return { ok: false, fatal: true, reason: loc.source + ' matched ' + count + ' elements. Add .first() or .nth(), or make the locator more specific.' };
   }
-  if (!count) return { ok: false, reason: 'Could not find ' + loc.source + ' on the page.' };
+  if (!count) return { ok: false, reason: 'Could not find ' + loc.source + ' on the page.' + (await missingHint(page, loc)) };
 
   const first = locator.first();
   if (!(await isShown(first))) return { ok: false, reason: loc.source + ' was found but is not visible.' };

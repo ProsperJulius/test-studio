@@ -95,6 +95,11 @@ function cli(args, env = {}) {
     assert.equal(byId.TC021.status, 'Failed');
     assert.match(byId.TC021.failure.error, /is disabled, so it cannot be clicked/);
 
+    // Not finding something has three quite different causes, and the failure has to name which.
+    assert.equal(byId.TC022.status, 'Failed');
+    assert.match(byId.TC022.failure.error, /an element has data-test-id="adjustment-apply-button"/);
+    assert.match(byId.TC022.failure.error, /Change the test ID attribute in Settings/);
+
     // Playwright-style locators and strict mode.
     assert.equal(byId.TC011.status, 'Passed', 'TC011: ' + JSON.stringify(byId.TC011.failure));
     assert.deepEqual(byId.TC011.fragileSteps, [14], 'the .nth() locator is reported as fragile');
@@ -106,7 +111,7 @@ function cli(args, env = {}) {
     assert.match(byId.TC017.failure.error, /“Proposal\.docx” is inside the collapsed folder “Documents”/);
 
     const junit = fs.readFileSync(path.join(latest.dir, 'junit.xml'), 'utf8');
-    assert.match(junit, /tests="21" failures="5"/);
+    assert.match(junit, /tests="22" failures="6"/);
     for (const f of ['report.html', 'evidence.docx', 'run.json']) assert.ok(fs.statSync(path.join(latest.dir, f)).size > 0, f);
 
     const shot = byId.TC003.failure.screenshot;

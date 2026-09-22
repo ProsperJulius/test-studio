@@ -1,0 +1,34 @@
+{
+  "id": "TC022",
+  "title": "Expected failure: a test ID written under another attribute name",
+  "tags": [
+    "locators"
+  ],
+  "priority": "P2",
+  "requirement": "",
+  "approval": "Approved",
+  "startUrl": "/primeng.html",
+  "steps": [
+    {
+      "id": "s240",
+      "action": "Open page",
+      "target": "components page",
+      "recordedTarget": "components page",
+      "value": "/primeng.html",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s241",
+      "action": "Click",
+      "target": "Apply",
+      "recordedTarget": "Apply",
+      "value": "",
+      "secret": false,
+      "shot": true,
+      "locators": null,
+      "locator": "getByTestId('adjustment-apply-button')"
+    }
+  ]
+}
