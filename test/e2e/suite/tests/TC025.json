@@ -1,0 +1,98 @@
+{
+  "id": "TC025",
+  "title": "A dialog opened from a grid column menu, which closes on its own button",
+  "tags": [
+    "grid",
+    "components"
+  ],
+  "priority": "P2",
+  "requirement": "",
+  "approval": "Approved",
+  "startUrl": "/grid-menu.html",
+  "steps": [
+    {
+      "id": "s270",
+      "action": "Open page",
+      "target": "adjustments",
+      "recordedTarget": "adjustments",
+      "value": "/grid-menu.html?closeOn=mousedown",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s271",
+      "action": "Click",
+      "target": "Estimate",
+      "recordedTarget": "Estimate",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "grid": {
+        "grid": {
+          "index": 0,
+          "label": "Adjustments"
+        },
+        "part": "header-menu",
+        "column": {
+          "colId": "",
+          "header": "Estimate"
+        },
+        "row": {
+          "mode": "match",
+          "match": "equals",
+          "column": {
+            "colId": "",
+            "header": ""
+          },
+          "value": ""
+        },
+        "inner": null
+      }
+    },
+    {
+      "id": "s272",
+      "action": "Click",
+      "target": "Adjust estimate",
+      "recordedTarget": "Adjust estimate",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByText('Adjust estimate')"
+    },
+    {
+      "id": "s273",
+      "action": "Type",
+      "target": "Amount",
+      "recordedTarget": "Amount",
+      "value": "75",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByTestId('adjustment-amount')"
+    },
+    {
+      "id": "s274",
+      "action": "Click",
+      "target": "Apply",
+      "recordedTarget": "Apply",
+      "value": "",
+      "secret": false,
+      "shot": true,
+      "locators": null,
+      "locator": "getByTestId('adjustment-apply-button')"
+    },
+    {
+      "id": "s275",
+      "action": "Verify text appears",
+      "target": "",
+      "recordedTarget": "",
+      "value": "Adjusted by 75",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    }
+  ]
+}

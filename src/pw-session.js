@@ -244,7 +244,9 @@ async function markTarget(page, loc, action) {
   if (count > 1) {
     return { ok: false, fatal: true, reason: loc.source + ' matched ' + count + ' elements. Add .first() or .nth(), or make the locator more specific.' };
   }
-  if (!count) return { ok: false, reason: 'Could not find ' + loc.source + ' on the page.' + (await missingHint(page, loc)) };
+  // notFound marks this apart from a step that failed for a reason of its own: once an element has
+  // gone, every later try says this, which would otherwise bury why the step really failed.
+  if (!count) return { ok: false, notFound: true, reason: 'Could not find ' + loc.source + ' on the page.' + (await missingHint(page, loc)) };
 
   const first = locator.first();
   if (!(await isShown(first))) return { ok: false, reason: loc.source + ' was found but is not visible.' };
@@ -322,6 +324,11 @@ async function actOnTarget(page, loc, action, value, timeout) {
     // main process afterwards, so it reaches whatever the click or the typing left focused.
     return { ok: true, used: 'locator', entered: action === 'Press Enter' };
   } catch (e) {
+    // A dialog that closes on its own button takes the button with it. Playwright then reports the
+    // element as detached, or gives up waiting on it, when the application has already done what
+    // the step asked for. Nothing else touched it, so if what was tagged has gone, the step worked.
+    const gone = (await target.count().catch(() => 1)) === 0;
+    if (gone) return { ok: true, used: 'locator' };
     return { ok: false, reason: actReason(e, loc.source, action, value) };
   }
 }

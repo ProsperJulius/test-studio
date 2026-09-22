@@ -715,10 +715,14 @@ async function act(wc, ctx, loc, action, value, fieldAction, timeout) {
 async function tryUntil(fn, timeoutMs) {
   const end = Date.now() + timeoutMs;
   const scrollEnd = end + 60000;
+  // Once an element has gone, every try after that says only that it could not be found, which
+  // buries the reason the step actually failed. The first reason of its own is kept and reported.
+  let firstReal = null;
   for (;;) {
     const res = await fn();
     if (res.ok || res.fatal) return res;
-    if (Date.now() > (res.scrolled ? scrollEnd : end)) return res;
+    if (!res.notFound && !firstReal && res.reason) firstReal = res;
+    if (Date.now() > (res.scrolled ? scrollEnd : end)) return firstReal || res;
     await delay(res.scrolled ? 80 : 300);
   }
 }

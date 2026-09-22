@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Adjustments – Shop</title>
+  <link rel="stylesheet" href="/vendor/ag-grid-enterprise/styles/ag-grid.css">
+  <link rel="stylesheet" href="/vendor/ag-grid-enterprise/styles/ag-theme-quartz.css">
+  <style>
+    #adjust { position: fixed; top: 120px; left: 320px; width: 300px; padding: 16px;
+              background: #fff; border: 1px solid #888; z-index: 100; }
+  </style>
+</head>
+<body>
+  <h2>Adjustments</h2>
+  <div id="grid" class="ag-theme-quartz" style="height: 360px; width: 820px;"></div>
+  <p id="note">No adjustment yet</p>
+  <div id="host"></div>
+
+  <script src="/vendor/ag-grid-enterprise/dist/ag-grid-enterprise.min.js"></script>
+  <script src="/vendor/ag-grid-license.js"></script>
+  <script>
+    const note = document.getElementById('note');
+    const host = document.getElementById('host');
+
+    // The popup the application opens from a column menu item. It holds the Apply button, and it
+    // takes itself out of the page when Apply is clicked.
+    function openAdjust(colId) {
+      host.innerHTML =
+        '<div id="adjust" role="dialog" aria-label="Adjust estimate">' +
+        '<p>Adjust estimate for ' + colId + '</p>' +
+        '<input data-testid="adjustment-amount" type="text" placeholder="Amount">' +
+        '<button data-testid="adjustment-apply-button" type="button">Apply</button>' +
+        '</div>';
+      // Some applications tear the dialog down on the way down, not on the click. The button is
+      // then gone before the mouse comes back up, while the application has already reacted.
+      const closeOn = new URLSearchParams(location.search).get('closeOn') || 'click';
+      document.querySelector('[data-testid=adjustment-apply-button]').addEventListener(closeOn, () => {
+        const amount = document.querySelector('[data-testid=adjustment-amount]').value;
+        host.innerHTML = '';                       // the popup vanishes when Apply is worked
+        note.textContent = 'Adjusted by ' + amount;
+      });
+    }
+
+    const rows = Array.from({ length: 40 }, (_, i) => ({
+      orderId: String(1000 + i), customer: 'Customer ' + (i + 1), estimate: (i + 1) * 10
+    }));
+    agGrid.createGrid(document.getElementById('grid'), {
+      rowData: rows,
+      columnDefs: [
+        { headerName: 'Order ID', field: 'orderId', width: 140 },
+        { headerName: 'Customer', field: 'customer', width: 300 },
+        { headerName: 'Estimate', field: 'estimate', width: 200 }
+      ],
+      // A menu item of the application's own, which is how this normally reaches a dialog.
+      getMainMenuItems: (params) => ([
+        { name: 'Adjust estimate', action: () => openAdjust(params.column.getColId()) },
+        'separator', 'resetColumns'
+      ])
+    });
+  </script>
+</body>
+</html>
