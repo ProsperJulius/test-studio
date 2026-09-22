@@ -1,6 +1,6 @@
 {
   "id": "TC020",
-  "title": "Components: a test ID on the wrapper a framework puts round a control",
+  "title": "Components: test IDs on wrappers, and controls kept in a shadow root",
   "tags": [
     "locators",
     "components"
@@ -175,6 +175,38 @@
       "target": "",
       "recordedTarget": "",
       "value": "Chose Blue",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s218",
+      "action": "Type",
+      "target": "Amount",
+      "recordedTarget": "Amount",
+      "value": "250",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByTestId('estimate-amount')"
+    },
+    {
+      "id": "s219",
+      "action": "Click",
+      "target": "Apply estimate",
+      "recordedTarget": "Apply estimate",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByTestId('estimate-apply')"
+    },
+    {
+      "id": "s220",
+      "action": "Verify text appears",
+      "target": "",
+      "recordedTarget": "",
+      "value": "Applied estimate 250",
       "secret": false,
       "shot": false,
       "locators": null

@@ -12,6 +12,21 @@ const MARK = 'data-ts-target';
 // The controls a person can work. A component framework wraps these in an element of its own.
 const CONTROL = 'button,a[href],input,select,textarea,[role=button],[role=link],[contenteditable="true"],summary';
 
+// Actions that work a control rather than read one. Reading text from a component means the
+// component, so those are left pointing at whatever the locator matched.
+const ACTS_ON_CONTROL = ['Click', 'Click and press Enter', 'Double-click', 'Right-click', 'Type', 'Type and press Enter', 'Select', 'Press Enter', 'Verify field value', 'Verify element is enabled', 'Verify element is disabled'];
+
+// Playwright's own words for why it would not click, said the way the rest of the app says things.
+function clickReason(e, source) {
+  const msg = String((e && e.message) || '');
+  if (/not enabled|is disabled/i.test(msg)) return source + ' is disabled, so it cannot be clicked.';
+  if (/intercepts pointer events/i.test(msg)) return source + ' is covered by another element.';
+  if (/not visible/i.test(msg)) return source + ' was found but is not visible.';
+  if (/not stable/i.test(msg)) return source + ' kept moving, so it could not be clicked.';
+  if (/Timeout/i.test(msg)) return source + ' could not be clicked before the step ran out of time.';
+  return source + ' could not be clicked: ' + msg.split('\n')[0];
+}
+
 // A component host can have no box of its own — display: contents, or an inline wrapper around a
 // button positioned out of it — while the control it holds is plainly on screen. Playwright calls
 // the wrapper hidden, which is true of the wrapper and not of what the tester is looking at.
@@ -127,14 +142,45 @@ async function markTarget(page, loc, action) {
   if (!(await isShown(first))) return { ok: false, reason: loc.source + ' was found but is not visible.' };
 
   try {
-    await first.evaluate((el, mark) => {
-      document.querySelectorAll('[' + mark + ']').forEach((e) => e.removeAttribute(mark));
-      el.setAttribute(mark, '1');
-    }, MARK);
+    await first.evaluate((el, [mark, sel, descend]) => {
+      // The tag from the step before has to go, wherever it was put. A component keeps its markup
+      // in a shadow root, and a plain query stops at that boundary, so a tag left inside one would
+      // be found first by the next step and acted on instead.
+      const clear = (root) => {
+        root.querySelectorAll('[' + mark + ']').forEach((e) => e.removeAttribute(mark));
+        root.querySelectorAll('*').forEach((e) => { if (e.shadowRoot) clear(e.shadowRoot); });
+      };
+      clear(document);
+      let target = el;
+      if (descend && !el.matches(sel)) {
+        const inner = Array.from(el.querySelectorAll(sel)).filter((c) => {
+          const r = c.getBoundingClientRect();
+          const cs = getComputedStyle(c);
+          return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none';
+        });
+        if (inner.length === 1) target = inner[0];
+      }
+      target.setAttribute(mark, '1');
+    }, [MARK, CONTROL, ACTS_ON_CONTROL.includes(action)]);
   } catch (e) {
     return { ok: false, reason: 'The page changed while finding ' + loc.source + '.' };
   }
   return { ok: true };
+}
+
+// Clicks through Playwright rather than from inside the page. Playwright waits for the element to
+// be visible, still, enabled and actually able to receive the click, and it finds the element
+// itself — so a click no longer depends on the page being able to see the tag, and a click that
+// could not have happened is reported instead of passing quietly.
+async function clickTarget(page, loc, action, timeout) {
+  const found = await markTarget(page, loc, action);
+  if (!found.ok || found.done) return found;
+  try {
+    await page.locator('[' + MARK + ']').click({ timeout: Math.max(1000, timeout) });
+    return { ok: true, used: 'locator' };
+  } catch (e) {
+    return { ok: false, reason: clickReason(e, loc.source) };
+  }
 }
 
 async function close() {
@@ -142,4 +188,4 @@ async function close() {
   browser = null;
 }
 
-module.exports = { connect, setTestIdAttribute, pageForWebContents, markTarget, close, MARK };
+module.exports = { connect, setTestIdAttribute, pageForWebContents, markTarget, clickTarget, close, MARK };

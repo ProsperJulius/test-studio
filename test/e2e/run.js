@@ -88,6 +88,12 @@ function cli(args, env = {}) {
     // A test ID on the wrapper a framework puts round a control. Every step has to reach the
     // control inside it, and none of them may be sent twice — the page counts its submits.
     assert.ok(inRun('TC020').steps.every((s) => s.ms < 4000), 'TC020 never waits out a timeout');
+    // A control a component keeps in a shadow root: Playwright looks inside one, so the step has to.
+    assert.ok(stepText('TC020', /Applied estimate/), 'TC020 reaches the control in the shadow root');
+
+    // Clicking something that cannot be clicked has to fail, and say which of the reasons it is.
+    assert.equal(byId.TC021.status, 'Failed');
+    assert.match(byId.TC021.failure.error, /is disabled, so it cannot be clicked/);
 
     // Playwright-style locators and strict mode.
     assert.equal(byId.TC011.status, 'Passed', 'TC011: ' + JSON.stringify(byId.TC011.failure));
@@ -100,7 +106,7 @@ function cli(args, env = {}) {
     assert.match(byId.TC017.failure.error, /“Proposal\.docx” is inside the collapsed folder “Documents”/);
 
     const junit = fs.readFileSync(path.join(latest.dir, 'junit.xml'), 'utf8');
-    assert.match(junit, /tests="20" failures="4"/);
+    assert.match(junit, /tests="21" failures="5"/);
     for (const f of ['report.html', 'evidence.docx', 'run.json']) assert.ok(fs.statSync(path.join(latest.dir, f)).size > 0, f);
 
     const shot = byId.TC003.failure.screenshot;

@@ -37,6 +37,15 @@
     <li role="option" data-testid="option-green" tabindex="0">Green</li>
   </ul>
 
+  <!-- A component that keeps its markup in a shadow root, the way ViewEncapsulation.ShadowDom does.
+       Playwright looks inside one; a plain document.querySelector does not. -->
+  <estimate-panel id="panel"></estimate-panel>
+
+  <!-- Disabled until a form is valid, which is how a framework usually renders a button. -->
+  <p-button data-testid="apply-disabled">
+    <button class="p-button" type="button" id="disabled-inner" disabled>Apply (not yet)</button>
+  </p-button>
+
   <p-button data-testid="open-overlay"><button class="p-button" type="button">Open overlay</button></p-button>
 
   <!-- A host with no box of its own, holding a button that is on screen. -->
@@ -59,6 +68,18 @@
     document.getElementById('save-inner').addEventListener('click', () => { note.textContent = 'Saved'; });
     document.getElementById('floating-inner').addEventListener('click', () => { note.textContent = 'Floated'; });
     document.getElementById('dup-inner').addEventListener('click', () => { note.textContent = 'Twice clicked'; });
+
+    // Shadow DOM: the button and the field below are not reachable from the page's own document.
+    const panel = document.getElementById('panel');
+    const shadow = panel.attachShadow({ mode: 'open' });
+    shadow.innerHTML =
+      '<p>Estimate</p>' +
+      '<input data-testid="estimate-amount" type="text" placeholder="Amount">' +
+      '<button data-testid="estimate-apply" type="button">Apply estimate</button>';
+    shadow.querySelector('[data-testid=estimate-apply]').addEventListener('click', () => {
+      const amount = shadow.querySelector('[data-testid=estimate-amount]').value;
+      note.textContent = 'Applied estimate ' + amount;
+    });
 
     for (const opt of document.querySelectorAll('#suggestions [role=option]')) {
       opt.addEventListener('click', () => {

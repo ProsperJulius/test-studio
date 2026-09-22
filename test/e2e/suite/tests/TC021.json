@@ -1,0 +1,35 @@
+{
+  "id": "TC021",
+  "title": "Expected failure: a button that is disabled cannot be clicked",
+  "tags": [
+    "locators",
+    "components"
+  ],
+  "priority": "P2",
+  "requirement": "",
+  "approval": "Approved",
+  "startUrl": "/primeng.html",
+  "steps": [
+    {
+      "id": "s230",
+      "action": "Open page",
+      "target": "components page",
+      "recordedTarget": "components page",
+      "value": "/primeng.html",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s231",
+      "action": "Click",
+      "target": "Apply (not yet)",
+      "recordedTarget": "Apply (not yet)",
+      "value": "",
+      "secret": false,
+      "shot": true,
+      "locators": null,
+      "locator": "getByTestId('apply-disabled')"
+    }
+  ]
+}

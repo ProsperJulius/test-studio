@@ -82,7 +82,20 @@ function studioAct(loc, action, value, fieldAction) {
   let wanted;
   if (loc.marked) {
     // Playwright matched this step in the main process and tagged the one element it found.
-    el = document.querySelector('[data-ts-target]');
+    // It looks inside the shadow root a component keeps its markup in, so the search for the tag
+    // has to as well — a plain query stops at the boundary and reports the element missing.
+    const marked = (root) => {
+      const hit = root.querySelector('[data-ts-target]');
+      if (hit) return hit;
+      for (const e of root.querySelectorAll('*')) {
+        if (e.shadowRoot) {
+          const inner = marked(e.shadowRoot);
+          if (inner) return inner;
+        }
+      }
+      return null;
+    };
+    el = marked(document);
     wanted = loc.source;
     if (!el) return { ok: false, reason: 'Could not find ' + loc.source + ' on the page.' };
     el = control(el, action);
@@ -638,8 +651,11 @@ async function exec(wc, fn, ...args) {
 
 // Resolves a step's locator with Playwright when it has one, then performs the action in the page.
 // Steps recorded before locators existed still use the older hints, matched in the page as before.
-async function act(wc, ctx, loc, action, value, fieldAction) {
+async function act(wc, ctx, loc, action, value, fieldAction, timeout) {
   if (!loc.ast) return exec(wc, studioAct, loc, action, value, fieldAction);
+  // Playwright does the clicking: it checks the element can really be clicked first, and finding it
+  // is its own job, so nothing has to survive a round trip to the page and back.
+  if (action === 'Click' || action === 'Click and press Enter') return pw.clickTarget(ctx.page, loc, action, timeout);
   const found = await pw.markTarget(ctx.page, loc, action);
   if (!found.ok || found.done) return found;
   return exec(wc, studioAct, { marked: true, source: loc.source }, action, value, fieldAction);
@@ -755,7 +771,7 @@ async function executeStep(wc, step, ctx) {
     case 'Verify field value':
     case 'Verify element text': {
       const loc = locatorsFor(step, vars, ctx.settings);
-      const res = await tryUntil(() => act(wc, ctx, loc, step.action, value, !!meta.field), timeout);
+      const res = await tryUntil(() => act(wc, ctx, loc, step.action, value, !!meta.field, timeout), timeout);
       if (!res.ok) throw new Error(res.reason || 'The step could not be completed.');
       if (res.mouse) await mouseAt(wc, res.mouse, step.action);
       if (['Press Enter', 'Type and press Enter', 'Click and press Enter'].includes(step.action)) pressEnter(wc);
