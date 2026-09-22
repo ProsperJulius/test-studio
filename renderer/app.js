@@ -947,6 +947,14 @@ const actions = {
     st.locator = converted;
     markChanged();
     render();
+    // A locator built from a description matches whatever else is described the same way, and a
+    // dialog opening over the page is the usual way a second one appears.
+    const parsed = LocatorParse.parseLocator(converted);
+    const describes = parsed.ok && ['label', 'placeholder', 'text'].includes(LocatorParse.locatorQuality(parsed.ast));
+    if (describes) {
+      toast('Converted, but this finds the element by how it reads. If a dialog shows the same wording the step will stop, saying it matched two elements — put getByRole(\'dialog\', { name: \'…\' }). in front of it then.', 'error');
+      return;
+    }
     toast(st.locators && st.target === st.recordedTarget ? 'Converted. Run the test to check it still finds the element.' : 'Created a locator from the name. Check it finds the right element.');
   },
   'rec-save-notice': async (el) => {

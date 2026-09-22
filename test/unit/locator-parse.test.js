@@ -58,6 +58,14 @@ test('converts older recorded hints to locators', () => {
   assert.equal(legacyToLocator({ testId: 'save', label: 'x' }), "getByTestId('save')");
   assert.equal(legacyToLocator({ testId: 'save' }, 'data-qa'), `locator('[data-testid="save"],[data-test="save"],[data-qa="save"],[data-cy="save"]')`);
   assert.equal(legacyToLocator({ label: 'Username' }), "getByLabel('Username', { exact: true })");
+  // An id names one element in a page; a label describes one, and a dialog opening over the page
+  // can put a second element with the same label in it. A <label for=…> needs the field to have an
+  // id, so a converted field step nearly always has one to use.
+  assert.equal(legacyToLocator({ id: 'qty', label: 'Quantity', name: 'qty' }), "locator('#qty')");
+  assert.equal(legacyToLocator({ testId: 'save', id: 'qty' }), "getByTestId('save')", 'a test id still comes first');
+  // An id the page made up as it ran names a different element next time, so it is not used.
+  assert.equal(legacyToLocator({ id: 'input-8831742', label: 'Quantity' }), "getByLabel('Quantity', { exact: true })");
+  assert.equal(legacyToLocator({ id: 'r:0', label: 'Quantity' }), "getByLabel('Quantity', { exact: true })");
   assert.equal(legacyToLocator({ placeholder: 'Search' }), "getByPlaceholder('Search', { exact: true })");
   assert.equal(legacyToLocator({ id: 'secret-panel' }), "locator('#secret-panel')");
   assert.equal(legacyToLocator({ name: 'q' }), `locator('[name="q"]')`);

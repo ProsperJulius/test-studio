@@ -233,14 +233,23 @@
   }
 
   // ---------- Converting old recorded hints ----------
+  // An id a page makes up as it runs, such as input-8831742, names one element today and another
+  // one tomorrow, so it is no better than a description.
+  const stableId = (id) => (id && !/\d{4,}|[:{}]/.test(id) ? id : null);
+
   function legacyToLocator(locators, testIdAttribute) {
     const l = locators || {};
     const attr = testIdAttribute || 'data-testid';
+    const id = stableId(l.id);
     let ast = null;
+    // A test ID and an id each name one element in a page, so they are used first. A label, a
+    // placeholder or a piece of text describes an element, and a dialog opening over the page can
+    // put a second element with the same description in it — the recorded hints say nothing about
+    // which dialog the element was in, so a description cannot be narrowed down here.
     if (l.testId) ast = attr === 'data-testid' ? [{ name: 'getByTestId', args: [l.testId] }] : [{ name: 'locator', args: ['[data-testid="' + l.testId + '"],[data-test="' + l.testId + '"],[data-qa="' + l.testId + '"],[data-cy="' + l.testId + '"]'] }];
+    else if (id) ast = [{ name: 'locator', args: ['#' + (/^[A-Za-z][\w-]*$/.test(id) ? id : '[id="' + id + '"]').replace('#[', '[')] }];
     else if (l.label) ast = [{ name: 'getByLabel', args: [l.label, { exact: true }] }];
     else if (l.placeholder) ast = [{ name: 'getByPlaceholder', args: [l.placeholder, { exact: true }] }];
-    else if (l.id) ast = [{ name: 'locator', args: ['#' + (/^[A-Za-z][\w-]*$/.test(l.id) ? l.id : '[id="' + l.id + '"]').replace('#[', '[')] }];
     else if (l.name) ast = [{ name: 'locator', args: ['[name="' + l.name + '"]'] }];
     else if (l.text) ast = [{ name: 'getByText', args: [l.text, { exact: true }] }];
     else if (l.css) ast = [{ name: 'locator', args: [l.css] }];
