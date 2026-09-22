@@ -714,18 +714,40 @@ async function act(wc, ctx, loc, action, value, fieldAction, timeout) {
 // Polls fn until it succeeds or times out. While a grid is being scrolled to search for a row,
 // polling is faster and may continue up to a minute beyond the step timeout.
 async function tryUntil(fn, timeoutMs) {
-  const end = Date.now() + timeoutMs;
+  const started = Date.now();
+  const end = started + timeoutMs;
   const scrollEnd = end + 60000;
   // Once an element has gone, every try after that says only that it could not be found, which
-  // buries the reason the step actually failed. The first reason of its own is kept and reported.
+  // buries the reason the step actually failed. The first reason of its own is kept and reported,
+  // and how many times it tried and what the first and last tries said are carried out with it —
+  // an element that was never there and one that was worked and then went read the same otherwise.
   let firstReal = null;
+  let first = null;
+  let tries = 0;
   for (;;) {
     const res = await fn();
-    if (res.ok || res.fatal) return res;
+    tries++;
+    if (res.ok || res.fatal) return { ...res, tries, ms: Date.now() - started };
+    if (!first && res.reason) first = res.reason;
     if (!res.notFound && !firstReal && res.reason) firstReal = res;
-    if (Date.now() > (res.scrolled ? scrollEnd : end)) return firstReal || res;
+    if (Date.now() > (res.scrolled ? scrollEnd : end)) {
+      return { ...(firstReal || res), tries, ms: Date.now() - started, firstReason: first, lastReason: res.reason };
+    }
     await delay(res.scrolled ? 80 : 300);
   }
+}
+
+// What a failing step says. A step is tried over and over until it works or runs out of time, and
+// one sentence from one try cannot tell "it was never there" from "it was there, was worked, and
+// then went" — which are different bugs with different fixes.
+function failureText(res, fallback) {
+  const main = res.reason || fallback;
+  if (!res.tries || res.tries < 2) return main;
+  const took = ' Tried ' + res.tries + ' times over ' + ((res.ms || 0) / 1000).toFixed(1) + 's.';
+  if (res.firstReason && res.lastReason && res.firstReason !== res.lastReason) {
+    return main + took + ' The last try said: ' + res.lastReason;
+  }
+  return main + took;
 }
 
 // Waits for navigation or rendering to finish. fast is used before a step that saves text from
@@ -778,7 +800,7 @@ async function gridStep(wc, step, ctx, value, vars, timeout) {
     }
     return r;
   }, timeout);
-  if (!res.ok) throw new Error(res.reason || 'The grid step could not be completed.');
+  if (!res.ok) throw new Error(failureText(res, 'The grid step could not be completed.'));
   if (res.mouse) await mouseAt(wc, res.mouse, step.action);
   const entering = ['Press Enter', 'Type and press Enter', 'Click and press Enter'].includes(step.action);
   if (entering) pressEnter(wc);
@@ -827,7 +849,7 @@ async function executeStep(wc, step, ctx) {
     case 'Verify element text': {
       const loc = locatorsFor(step, vars, ctx.settings);
       const res = await tryUntil(() => act(wc, ctx, loc, step.action, value, !!meta.field, timeout), timeout);
-      if (!res.ok) throw new Error(res.reason || 'The step could not be completed.');
+      if (!res.ok) throw new Error(failureText(res, 'The step could not be completed.'));
       if (res.mouse) await mouseAt(wc, res.mouse, step.action);
       if (!res.entered && ['Press Enter', 'Type and press Enter', 'Click and press Enter'].includes(step.action)) pressEnter(wc);
       if (!meta.verify) await settle(wc, ctx.beforeCapture);
@@ -850,7 +872,7 @@ async function executeStep(wc, step, ctx) {
         }
         return { ok: false, reason: 'No text matching “' + step.value + '” appeared' + (step.target ? ' in “' + step.target + '”' : ' on the page') + '.' };
       }, timeout);
-      if (!res.ok) throw new Error(res.reason);
+      if (!res.ok) throw new Error(failureText(res, 'The value could not be saved.'));
       return { captured: res.values, used: res.used };
     }
     case 'Verify text appears':

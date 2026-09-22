@@ -112,6 +112,13 @@ function cli(args, env = {}) {
     assert.ok(tc023.beforeScreenshot, 'the page before the failing step is kept');
     assert.ok(fs.statSync(path.join(latest.dir, tc023.beforeScreenshot)).size > 1000, 'and written out');
 
+    // A step whose first try failed for one reason and whose last failed for another has to say
+    // both, or "it was never there" gets reported for something that was there to begin with.
+    assert.equal(byId.TC026.status, 'Failed');
+    assert.match(byId.TC026.failure.error, /was found but is not visible/);
+    assert.match(byId.TC026.failure.error, /Tried \d+ times over/);
+    assert.match(byId.TC026.failure.error, /The last try said: Could not find/);
+
     // Everything TC024 works is inside a frame, and one of the controls is in a shadow root inside
     // that frame, so both boundaries are crossed on the same step.
     assert.ok(stepText('TC024', /Applied estimate 250/), 'TC024 reaches through the frame');
@@ -127,7 +134,7 @@ function cli(args, env = {}) {
     assert.match(byId.TC017.failure.error, /“Proposal\.docx” is inside the collapsed folder “Documents”/);
 
     const junit = fs.readFileSync(path.join(latest.dir, 'junit.xml'), 'utf8');
-    assert.match(junit, /tests="25" failures="7"/);
+    assert.match(junit, /tests="26" failures="8"/);
     for (const f of ['report.html', 'evidence.docx', 'run.json']) assert.ok(fs.statSync(path.join(latest.dir, f)).size > 0, f);
 
     const shot = byId.TC003.failure.screenshot;

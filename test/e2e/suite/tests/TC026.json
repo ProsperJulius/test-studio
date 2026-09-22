@@ -1,0 +1,34 @@
+{
+  "id": "TC026",
+  "title": "Expected failure: a step that fails for one reason and then for another",
+  "tags": [
+    "locators"
+  ],
+  "priority": "P2",
+  "requirement": "",
+  "approval": "Approved",
+  "startUrl": "/primeng.html",
+  "steps": [
+    {
+      "id": "s280",
+      "action": "Open page",
+      "target": "components page",
+      "recordedTarget": "components page",
+      "value": "/primeng.html",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s281",
+      "action": "Click",
+      "target": "Not yet",
+      "recordedTarget": "Not yet",
+      "value": "",
+      "secret": false,
+      "shot": true,
+      "locators": null,
+      "locator": "getByTestId('vanishing')"
+    }
+  ]
+}

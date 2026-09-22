@@ -335,8 +335,11 @@ async function actOnTarget(page, loc, action, value, timeout) {
     // A dialog that closes on its own button takes the button with it. Playwright then reports the
     // element as detached, or gives up waiting on it, when the application has already done what
     // the step asked for. Nothing else touched it, so if what was tagged has gone, the step worked.
-    const gone = (await target.count().catch(() => 1)) === 0;
-    if (gone) return { ok: true, used: 'locator' };
+    // A count that cannot be taken is not evidence the element survived — the click was already
+    // sent — so it is asked for twice before deciding the element is still there.
+    let left = await target.count().catch(() => null);
+    if (left === null) left = await target.count().catch(() => 0);
+    if (left === 0) return { ok: true, used: 'locator' };
     return { ok: false, reason: actReason(e, loc.source, action, value) };
   }
 }

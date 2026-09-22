@@ -50,6 +50,10 @@
   <!-- A test ID written under a different attribute name than the one in Settings. -->
   <button class="p-button" data-test-id="adjustment-apply-button" type="button">Apply (other attribute)</button>
 
+  <!-- There, but not shown; then gone. A step on it fails for one reason and then for another,
+       which is the case a single sentence cannot describe. -->
+  <button class="p-button" data-testid="vanishing" type="button" style="visibility: hidden">Not yet</button>
+
   <p data-testid="dbl-target">Double-click me</p>
   <p data-testid="ctx-target">Right-click me</p>
   <input data-testid="enter-field" type="text" placeholder="Press Enter here">
@@ -77,6 +81,7 @@
     document.getElementById('floating-inner').addEventListener('click', () => { note.textContent = 'Floated'; });
     document.getElementById('dup-inner').addEventListener('click', () => { note.textContent = 'Twice clicked'; });
 
+    setTimeout(() => { const v = document.querySelector('[data-testid=vanishing]'); if (v) v.remove(); }, 900);
     document.querySelector('[data-testid=dbl-target]').addEventListener('dblclick', () => { note.textContent = 'Double-clicked'; });
     document.querySelector('[data-testid=ctx-target]').addEventListener('contextmenu', (e) => { e.preventDefault(); note.textContent = 'Right-clicked'; });
     document.querySelector('[data-testid=enter-field]').addEventListener('keydown', (e) => {
