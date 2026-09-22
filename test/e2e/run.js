@@ -61,7 +61,7 @@ function cli(args, env = {}) {
     assert.equal(results.summary.flaky, 1);
 
     // AG Grid and captured values.
-    for (const id of ['TC006', 'TC007', 'TC008', 'TC009', 'TC010', 'TC013', 'TC014', 'TC015', 'TC016', 'TC018', 'TC019', 'TC020']) assert.equal(byId[id].status, 'Passed', id + ': ' + JSON.stringify(byId[id].failure));
+    for (const id of ['TC006', 'TC007', 'TC008', 'TC009', 'TC010', 'TC013', 'TC014', 'TC015', 'TC016', 'TC018', 'TC019', 'TC020', 'TC024']) assert.equal(byId[id].status, 'Passed', id + ': ' + JSON.stringify(byId[id].failure));
     assert.deepEqual(byId.TC007.captured, { orderId: '1003' });
     assert.deepEqual(byId.TC009.captured, { newOrderId: '5001' });
     const runTests = JSON.parse(fs.readFileSync(path.join(latest.dir, 'run.json'), 'utf8')).tests;
@@ -106,6 +106,10 @@ function cli(args, env = {}) {
     assert.match(byId.TC023.failure.error, /the right part of the application looks to be on screen/);
     assert.match(byId.TC023.failure.error, /“estimate-amount”|“estimate-apply”/);
 
+    // Everything TC024 works is inside a frame, and one of the controls is in a shadow root inside
+    // that frame, so both boundaries are crossed on the same step.
+    assert.ok(stepText('TC024', /Applied estimate 250/), 'TC024 reaches through the frame');
+
     // Playwright-style locators and strict mode.
     assert.equal(byId.TC011.status, 'Passed', 'TC011: ' + JSON.stringify(byId.TC011.failure));
     assert.deepEqual(byId.TC011.fragileSteps, [14], 'the .nth() locator is reported as fragile');
@@ -117,7 +121,7 @@ function cli(args, env = {}) {
     assert.match(byId.TC017.failure.error, /“Proposal\.docx” is inside the collapsed folder “Documents”/);
 
     const junit = fs.readFileSync(path.join(latest.dir, 'junit.xml'), 'utf8');
-    assert.match(junit, /tests="23" failures="7"/);
+    assert.match(junit, /tests="24" failures="7"/);
     for (const f of ['report.html', 'evidence.docx', 'run.json']) assert.ok(fs.statSync(path.join(latest.dir, f)).size > 0, f);
 
     const shot = byId.TC003.failure.screenshot;

@@ -32,7 +32,7 @@ async function missingHint(page, loc) {
   if (!value) return '';
   let seen;
   try {
-    seen = await page.evaluate(([v, attrs]) => {
+    const perRoot = await Promise.all(rootsOf(page).map((root) => root.evaluate(([v, attrs]) => {
       const exact = [];
       let partial = 0;
       const walk = (root) => {
@@ -66,7 +66,15 @@ async function missingHint(page, loc) {
         related: Array.from(new Set(all.filter((x) => x.split(/[-_ ]/)[0] === v.split(/[-_ ]/)[0]))).slice(0, 5),
         frames: document.querySelectorAll('iframe,frame').length
       };
-    }, [value, TEST_ID_ATTRS]);
+    }, [value, TEST_ID_ATTRS]).catch(() => null)));
+    const got = perRoot.filter(Boolean);
+    seen = {
+      exact: Array.from(new Set(got.flatMap((r) => r.exact))),
+      partial: got.reduce((n, r) => n + r.partial, 0),
+      total: got.reduce((n, r) => n + r.total, 0),
+      related: Array.from(new Set(got.flatMap((r) => r.related))).slice(0, 5),
+      frames: got.reduce((n, r) => n + r.frames, 0)
+    };
   } catch (e) {
     return '';
   }
@@ -90,7 +98,7 @@ async function missingHint(page, loc) {
   } else {
     why += ' The page has no test IDs at all, so it may not have finished loading.';
   }
-  if (seen.frames) why += ' It also has ' + seen.frames + ' frame(s), which steps do not look inside.';
+  if (seen.frames) why += ' It also has ' + seen.frames + ' frame(s), which were searched as well.';
   return why;
 }
 
@@ -177,23 +185,40 @@ async function pageForWebContents(wc, timeoutMs = 15000) {
   }
 }
 
+// A page often shows part of itself in a frame — a dialog, a report, an editor — and a locator does
+// not look inside one on its own. The page is tried first, then each frame, so a locator written
+// against what the tester sees keeps working wherever the element actually lives. Playwright reaches
+// into a frame from another site too, which the page's own code cannot.
+const rootsOf = (page) => [page, ...page.frames().filter((f) => f !== page.mainFrame())];
+
+async function locatorFor(page, ast) {
+  let first = null;
+  for (const root of rootsOf(page)) {
+    const locator = buildLocator(root, ast);
+    const n = await locator.count();
+    if (!first) first = { locator, count: n, root };
+    if (n) return { locator, count: n, root };
+  }
+  return first;
+}
+
 // Resolves a step's locator and marks the match for the in-page action code.
 // Returns { ok, fatal, reason, done } — done means the step is already decided.
 async function markTarget(page, loc, action) {
-  let locator;
+  let found;
   try {
-    locator = buildLocator(page, loc.ast);
+    found = await locatorFor(page, loc.ast);
   } catch (e) {
-    return { ok: false, fatal: true, reason: loc.source + ' is not supported: ' + e.message };
-  }
-
-  let count;
-  try {
-    count = await locator.count();
-  } catch (e) {
+    if (/not supported|Unsupported/.test(String((e && e.message) || ''))) {
+      return { ok: false, fatal: true, reason: loc.source + ' is not supported: ' + e.message };
+    }
     // Navigating or detached: let the caller poll again.
     return { ok: false, reason: 'The page was still loading.' };
   }
+
+  let locator = found.locator;
+  let count = found.count;
+  const root = found.root;
 
   if (count > 1) {
     // The same test ID on a component and on the control inside it is one element described twice,
@@ -248,7 +273,7 @@ async function markTarget(page, loc, action) {
   } catch (e) {
     return { ok: false, reason: 'The page changed while finding ' + loc.source + '.' };
   }
-  return { ok: true };
+  return { ok: true, root };
 }
 
 // The actions Playwright carries out itself. It waits for the element to be visible, still, enabled
@@ -260,7 +285,8 @@ const PLAYWRIGHT_ACTS = ['Click', 'Click and press Enter', 'Double-click', 'Righ
 async function actOnTarget(page, loc, action, value, timeout) {
   const found = await markTarget(page, loc, action);
   if (!found.ok || found.done) return found;
-  const target = page.locator('[' + MARK + ']');
+  // The tag may be inside a frame, so it is looked for where the element was found.
+  const target = (found.root || page).locator('[' + MARK + ']');
   const opts = { timeout: Math.max(1000, timeout) };
   try {
     switch (action) {

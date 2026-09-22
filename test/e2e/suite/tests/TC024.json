@@ -1,0 +1,88 @@
+{
+  "id": "TC024",
+  "title": "A page shown inside a frame: clicking, typing and checks reach into it",
+  "tags": [
+    "locators",
+    "frames"
+  ],
+  "priority": "P2",
+  "requirement": "",
+  "approval": "Approved",
+  "startUrl": "/framed.html",
+  "steps": [
+    {
+      "id": "s260",
+      "action": "Open page",
+      "target": "portal",
+      "recordedTarget": "portal",
+      "value": "/framed.html",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s261",
+      "action": "Click",
+      "target": "Save",
+      "recordedTarget": "Save",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByTestId('save')"
+    },
+    {
+      "id": "s262",
+      "action": "Verify text appears",
+      "target": "",
+      "recordedTarget": "",
+      "value": "Saved",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s263",
+      "action": "Type",
+      "target": "Amount",
+      "recordedTarget": "Amount",
+      "value": "250",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByTestId('estimate-amount')"
+    },
+    {
+      "id": "s264",
+      "action": "Click",
+      "target": "Apply estimate",
+      "recordedTarget": "Apply estimate",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByTestId('estimate-apply')"
+    },
+    {
+      "id": "s265",
+      "action": "Verify text appears",
+      "target": "",
+      "recordedTarget": "",
+      "value": "Applied estimate 250",
+      "secret": false,
+      "shot": true,
+      "locators": null
+    },
+    {
+      "id": "s266",
+      "action": "Verify element text",
+      "target": "Apply estimate",
+      "recordedTarget": "Apply estimate",
+      "value": "Apply estimate",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByTestId('estimate-apply')"
+    }
+  ]
+}

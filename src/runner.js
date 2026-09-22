@@ -93,6 +93,16 @@ function studioAct(loc, action, value, fieldAction) {
           if (inner) return inner;
         }
       }
+      // Playwright reaches into a frame as well, including one from another site. This code can
+      // only read a frame from the same site; anything further is the browser's rule, not ours.
+      for (const f of root.querySelectorAll('iframe,frame')) {
+        let doc = null;
+        try { doc = f.contentDocument; } catch (e) { doc = null; }
+        if (doc) {
+          const inner = marked(doc);
+          if (inner) return inner;
+        }
+      }
       return null;
     };
     el = marked(document);
@@ -627,15 +637,54 @@ function studioGrid(g, rowValue, action, value, scanId) {
 
 function studioPageText() {
   const norm = (t) => (t || '').replace(/\s+/g, ' ').trim();
-  const notices = Array.from(document.querySelectorAll('[role=alert],[role=status],[aria-live],[class*=toast],[class*=snackbar],[class*=notification],[class*=Toast],[class*=Snackbar],[class*=Notification]'))
+  // The words a person reads are not all in this document: a component keeps its markup in a shadow
+  // root, and an application often shows part of itself in a frame. Both are gathered here. A frame
+  // from another site cannot be read from the page at all — that is the browser's rule, not ours —
+  // and a check written with a locator reaches those, because Playwright resolves it.
+  const readAll = (pick) => {
+    const out = [];
+    const fromDoc = (doc) => {
+      if (doc.body) out.push(...pick(doc));
+      for (const el of doc.querySelectorAll('*')) if (el.shadowRoot) out.push(...pick(el.shadowRoot));
+      for (const f of doc.querySelectorAll('iframe,frame')) {
+        let inner = null;
+        try { inner = f.contentDocument; } catch (e) { inner = null; }
+        if (inner && inner.body) fromDoc(inner);
+      }
+    };
+    fromDoc(document);
+    return out;
+  };
+
+  const notices = readAll((root) => Array.from(root.querySelectorAll('[role=alert],[role=status],[aria-live],[class*=toast],[class*=snackbar],[class*=notification],[class*=Toast],[class*=Snackbar],[class*=Notification]'))
     .filter((el) => !el.closest('.ag-aria-description-container'))
-    .map((el) => norm(el.textContent)).filter(Boolean);
-  return { ok: true, texts: notices.concat(document.body ? [norm(document.body.innerText)] : []) };
+    .map((el) => norm(el.textContent))).filter(Boolean);
+  const bodies = readAll((root) => [norm(root.body ? root.body.innerText : root.textContent)]).filter(Boolean);
+  return { ok: true, texts: notices.concat(bodies) };
 }
 
 function studioVerify(text) {
   const norm = (t) => (t || '').replace(/\s+/g, ' ').trim();
-  const body = document.body ? norm(document.body.innerText) : '';
+  // The words a person reads are not all in this document: a component keeps its markup in a shadow
+  // root, and an application often shows part of itself in a frame. Both are gathered here. A frame
+  // from another site cannot be read from the page at all — that is the browser's rule, not ours —
+  // and a check written with a locator reaches those, because Playwright resolves it.
+  const readAll = (pick) => {
+    const out = [];
+    const fromDoc = (doc) => {
+      if (doc.body) out.push(...pick(doc));
+      for (const el of doc.querySelectorAll('*')) if (el.shadowRoot) out.push(...pick(el.shadowRoot));
+      for (const f of doc.querySelectorAll('iframe,frame')) {
+        let inner = null;
+        try { inner = f.contentDocument; } catch (e) { inner = null; }
+        if (inner && inner.body) fromDoc(inner);
+      }
+    };
+    fromDoc(document);
+    return out;
+  };
+
+  const body = readAll((root) => [norm(root.body ? root.body.innerText : root.textContent)]).join(' ');
   return { ok: true, found: body.includes(norm(text)) };
 }
 
