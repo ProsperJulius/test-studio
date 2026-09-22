@@ -34,6 +34,22 @@ function studioAct(loc, action, value, fieldAction) {
   const fieldSel = 'input,select,textarea,[contenteditable="true"]';
   const clickSel = 'button,a,[role=button],[role=link],[role=tab],[role=menuitem],[role=option],input[type=submit],input[type=button],input[type=checkbox],input[type=radio],summary,label,li,td,th,span,div,p,h1,h2,h3,h4,h5,h6';
 
+  // A component framework wraps its controls in an element of its own — <p-button>, <p-inputtext>,
+  // <mat-select> — and a test ID put on the component lands on that wrapper. A wrapper is not what
+  // a person clicks or types into: a click dispatched on it is never seen by the button inside,
+  // because events travel up and not down, and it has no value or disabled state of its own.
+  // So for the actions that work an element, use the one control it holds. Exactly one, never a
+  // choice between several, and only for acting: reading text from a wrapper is still reading the
+  // wrapper, which is what a step asking about it means.
+  const controlSel = 'button,a[href],input,select,textarea,[role=button],[role=link],[contenteditable="true"],summary';
+  const ACTS_ON_CONTROL = ['Click', 'Double-click', 'Right-click', 'Type', 'Type and press Enter', 'Select', 'Press Enter', 'Verify field value', 'Verify element is enabled', 'Verify element is disabled'];
+  const control = (el, action) => {
+    if (!el || !ACTS_ON_CONTROL.includes(action) || el.matches(controlSel)) return el;
+    let inner;
+    try { inner = Array.from(el.querySelectorAll(controlSel)).filter(visible); } catch (e) { return el; }
+    return inner.length === 1 ? inner[0] : el;
+  };
+
   const controlForLabel = (text) => {
     const labels = q('label').filter((l) => norm(l.innerText).replace(/\s*\*$/, '') === text);
     for (const l of labels) {
@@ -69,6 +85,7 @@ function studioAct(loc, action, value, fieldAction) {
     el = document.querySelector('[data-ts-target]');
     wanted = loc.source;
     if (!el) return { ok: false, reason: 'Could not find ' + loc.source + ' on the page.' };
+    el = control(el, action);
     if (fieldAction && !(el.matches(fieldSel) || el.isContentEditable)) {
       return { ok: false, fatal: true, reason: loc.source + ' is a ' + el.nodeName.toLowerCase() + ', not a field that can be typed into or selected.' };
     }
@@ -85,6 +102,7 @@ function studioAct(loc, action, value, fieldAction) {
       } catch (e) { /* try next */ }
     }
     wanted = '“' + (loc.label || loc.text || loc.placeholder || loc.testId || loc.name || loc.css || 'element') + '”';
+    if (el) el = control(el, action);
 
     if (action === 'Verify element is hidden') {
       return el ? { ok: false, used, reason: wanted + ' is still visible.' } : { ok: true, used: null };

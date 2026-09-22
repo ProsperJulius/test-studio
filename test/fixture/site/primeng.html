@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Components – Shop</title>
+  <style>
+    /* PrimeNG component hosts are Angular elements, not controls. A host with display:contents
+       has no box of its own, though the control inside it is on screen. */
+    p-button, p-inputtext { display: contents; }
+    .p-button { padding: 6px 12px; }
+    #overlay { position: fixed; top: 60px; left: 300px; padding: 16px; background: #fff; border: 1px solid #888; }
+  </style>
+</head>
+<body>
+  <h1>Components</h1>
+  <p id="count">Submitted 0 time(s)</p>
+  <p id="note">Nothing yet</p>
+
+  <!-- The test ID is on the component host. The handler is on the button inside it, so a click
+       dispatched on the host itself is never seen by it. -->
+  <p-button data-testid="save">
+    <button class="p-button" type="button" id="save-inner">Save</button>
+  </p-button>
+
+  <!-- A real button, in a form that leaves the page when it is submitted. -->
+  <form id="form" method="get" action="/primeng.html">
+    <button class="p-button" data-testid="submit" type="submit" id="submit-inner">Submit order</button>
+  </form>
+
+  <!-- A field wrapped the way PrimeNG wraps one. -->
+  <p-inputtext data-testid="email"><input id="email-inner" type="text" placeholder="Email"></p-inputtext>
+
+  <p-button data-testid="open-overlay"><button class="p-button" type="button">Open overlay</button></p-button>
+
+  <!-- A host with no box of its own, holding a button that is on screen. -->
+  <p-button data-testid="floating" style="display: inline;">
+    <button class="p-button" type="button" id="floating-inner"
+            style="position: absolute; top: 240px; left: 20px;">Floating</button>
+  </p-button>
+
+  <!-- The same test ID on the host and on the button inside it. -->
+  <p-button data-testid="dup"><button class="p-button" data-testid="dup" type="button" id="dup-inner">Twice</button></p-button>
+  <div id="host"></div>
+
+  <script>
+    const store = window.sessionStorage;
+    const count = document.getElementById('count');
+    const note = document.getElementById('note');
+    const submits = () => Number(store.getItem('submits') || 0);
+    count.textContent = 'Submitted ' + submits() + ' time(s)';
+
+    document.getElementById('save-inner').addEventListener('click', () => { note.textContent = 'Saved'; });
+    document.getElementById('floating-inner').addEventListener('click', () => { note.textContent = 'Floated'; });
+    document.getElementById('dup-inner').addEventListener('click', () => { note.textContent = 'Twice clicked'; });
+
+    // Counts every submit, and survives the page being left, so a step that is sent more than once
+    // can be seen afterwards.
+    document.getElementById('form').addEventListener('submit', () => {
+      store.setItem('submits', String(submits() + 1));
+    });
+
+    document.querySelector('[data-testid=open-overlay] button').addEventListener('click', () => {
+      document.getElementById('host').innerHTML =
+        '<div id="overlay" role="dialog" aria-label="Details"><p>Overlay open</p>' +
+        '<button class="p-button" data-testid="close" type="button">Close</button></div>';
+      document.querySelector('[data-testid=close]').addEventListener('click', () => {
+        document.getElementById('host').innerHTML = '';   // takes itself out of the page
+        note.textContent = 'Overlay closed';
+      });
+    });
+  </script>
+</body>
+</html>

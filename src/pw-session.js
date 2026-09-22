@@ -9,6 +9,21 @@ const { buildLocator } = require('./pw-locator');
 // Set on the single element a step is about to act on, so the in-page action code can find it.
 const MARK = 'data-ts-target';
 
+// The controls a person can work. A component framework wraps these in an element of its own.
+const CONTROL = 'button,a[href],input,select,textarea,[role=button],[role=link],[contenteditable="true"],summary';
+
+// A component host can have no box of its own — display: contents, or an inline wrapper around a
+// button positioned out of it — while the control it holds is plainly on screen. Playwright calls
+// the wrapper hidden, which is true of the wrapper and not of what the tester is looking at.
+async function isShown(locator) {
+  if (await locator.isVisible().catch(() => false)) return true;
+  return locator.evaluate((el, sel) => Array.from(el.querySelectorAll(sel)).some((c) => {
+    const r = c.getBoundingClientRect();
+    const cs = getComputedStyle(c);
+    return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none';
+  }), CONTROL).catch(() => false);
+}
+
 let browser = null;
 let testIdAttribute = null;
 
@@ -82,9 +97,22 @@ async function markTarget(page, loc, action) {
     return { ok: false, reason: 'The page was still loading.' };
   }
 
+  if (count > 1) {
+    // The same test ID on a component and on the control inside it is one element described twice,
+    // not a locator that cannot tell two things apart. Matches that all sit in one chain mean the
+    // tester pointed at one thing, so the innermost — the control itself — is the one meant.
+    const nested = await locator
+      .evaluateAll((els) => els.every((e) => els.every((o) => o === e || e.contains(o) || o.contains(e))))
+      .catch(() => false);
+    if (nested) {
+      locator = locator.last();
+      count = 1;
+    }
+  }
+
   if (action === 'Verify element is hidden') {
     if (!count) return { ok: true, done: true, used: 'locator' };
-    const visible = await locator.first().isVisible().catch(() => false);
+    const visible = await isShown(locator.first());
     return visible
       ? { ok: false, used: 'locator', reason: loc.source + ' is still visible.' }
       : { ok: true, done: true, used: 'locator' };
@@ -96,8 +124,7 @@ async function markTarget(page, loc, action) {
   if (!count) return { ok: false, reason: 'Could not find ' + loc.source + ' on the page.' };
 
   const first = locator.first();
-  const visible = await first.isVisible().catch(() => false);
-  if (!visible) return { ok: false, reason: loc.source + ' was found but is not visible.' };
+  if (!(await isShown(first))) return { ok: false, reason: loc.source + ' was found but is not visible.' };
 
   try {
     await first.evaluate((el, mark) => {

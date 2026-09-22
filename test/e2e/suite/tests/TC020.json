@@ -1,0 +1,162 @@
+{
+  "id": "TC020",
+  "title": "Components: a test ID on the wrapper a framework puts round a control",
+  "tags": [
+    "locators",
+    "components"
+  ],
+  "priority": "P2",
+  "requirement": "",
+  "approval": "Approved",
+  "startUrl": "/primeng.html",
+  "steps": [
+    {
+      "id": "s200",
+      "action": "Open page",
+      "target": "components page",
+      "recordedTarget": "components page",
+      "value": "/primeng.html",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s201",
+      "action": "Click",
+      "target": "Save",
+      "recordedTarget": "Save",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByTestId('save')"
+    },
+    {
+      "id": "s202",
+      "action": "Verify text appears",
+      "target": "",
+      "recordedTarget": "",
+      "value": "Saved",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s203",
+      "action": "Type and press Enter",
+      "target": "Email",
+      "recordedTarget": "Email",
+      "value": "ada@example.com",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByTestId('email')"
+    },
+    {
+      "id": "s204",
+      "action": "Verify field value",
+      "target": "Email",
+      "recordedTarget": "Email",
+      "value": "ada@example.com",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByTestId('email')"
+    },
+    {
+      "id": "s205",
+      "action": "Click",
+      "target": "Floating",
+      "recordedTarget": "Floating",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByTestId('floating')"
+    },
+    {
+      "id": "s206",
+      "action": "Verify text appears",
+      "target": "",
+      "recordedTarget": "",
+      "value": "Floated",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s207",
+      "action": "Click",
+      "target": "Twice",
+      "recordedTarget": "Twice",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByTestId('dup')"
+    },
+    {
+      "id": "s208",
+      "action": "Verify text appears",
+      "target": "",
+      "recordedTarget": "",
+      "value": "Twice clicked",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s209",
+      "action": "Click",
+      "target": "Open overlay",
+      "recordedTarget": "Open overlay",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByTestId('open-overlay')"
+    },
+    {
+      "id": "s210",
+      "action": "Click",
+      "target": "Close",
+      "recordedTarget": "Close",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByTestId('close')"
+    },
+    {
+      "id": "s211",
+      "action": "Verify text appears",
+      "target": "",
+      "recordedTarget": "",
+      "value": "Overlay closed",
+      "secret": false,
+      "shot": true,
+      "locators": null
+    },
+    {
+      "id": "s212",
+      "action": "Click",
+      "target": "Submit order",
+      "recordedTarget": "Submit order",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByTestId('submit')"
+    },
+    {
+      "id": "s213",
+      "action": "Verify text appears",
+      "target": "",
+      "recordedTarget": "",
+      "value": "Submitted 1 time(s)",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    }
+  ]
+}

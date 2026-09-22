@@ -61,7 +61,7 @@ function cli(args, env = {}) {
     assert.equal(results.summary.flaky, 1);
 
     // AG Grid and captured values.
-    for (const id of ['TC006', 'TC007', 'TC008', 'TC009', 'TC010', 'TC013', 'TC014', 'TC015', 'TC016', 'TC018', 'TC019']) assert.equal(byId[id].status, 'Passed', id + ': ' + JSON.stringify(byId[id].failure));
+    for (const id of ['TC006', 'TC007', 'TC008', 'TC009', 'TC010', 'TC013', 'TC014', 'TC015', 'TC016', 'TC018', 'TC019', 'TC020']) assert.equal(byId[id].status, 'Passed', id + ': ' + JSON.stringify(byId[id].failure));
     assert.deepEqual(byId.TC007.captured, { orderId: '1003' });
     assert.deepEqual(byId.TC009.captured, { newOrderId: '5001' });
     const runTests = JSON.parse(fs.readFileSync(path.join(latest.dir, 'run.json'), 'utf8')).tests;
@@ -85,6 +85,10 @@ function cli(args, env = {}) {
     // action. Without that the step silently becomes "is this row in the grid?" instead.
     assert.equal(stepText('TC019', /Admin/), 'Check that “Admin tools” is not visible');
 
+    // A test ID on the wrapper a framework puts round a control. Every step has to reach the
+    // control inside it, and none of them may be sent twice — the page counts its submits.
+    assert.ok(inRun('TC020').steps.every((s) => s.ms < 4000), 'TC020 never waits out a timeout');
+
     // Playwright-style locators and strict mode.
     assert.equal(byId.TC011.status, 'Passed', 'TC011: ' + JSON.stringify(byId.TC011.failure));
     assert.deepEqual(byId.TC011.fragileSteps, [14], 'the .nth() locator is reported as fragile');
@@ -96,7 +100,7 @@ function cli(args, env = {}) {
     assert.match(byId.TC017.failure.error, /“Proposal\.docx” is inside the collapsed folder “Documents”/);
 
     const junit = fs.readFileSync(path.join(latest.dir, 'junit.xml'), 'utf8');
-    assert.match(junit, /tests="19" failures="4"/);
+    assert.match(junit, /tests="20" failures="4"/);
     for (const f of ['report.html', 'evidence.docx', 'run.json']) assert.ok(fs.statSync(path.join(latest.dir, f)).size > 0, f);
 
     const shot = byId.TC003.failure.screenshot;
