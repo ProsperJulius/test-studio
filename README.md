@@ -45,7 +45,9 @@ npm run dist:linux   # Linux AppImage
 
 ## Step actions
 
-**Actions:** Open page, Click, Double-click, Right-click, Type, Type and press Enter, Select, Press Enter, Wait, Take screenshot, Use block, Save value from text.
+**Actions:** Open page, Click, Click and press Enter, Double-click, Right-click, Type, Type and press Enter, Select, Press Enter, Wait, Take screenshot, Use block, Save value from text.
+
+**Click and press Enter** and **Type and press Enter** each do in one step what two steps did before. Click and press Enter suits a list of suggestions, where clicking an option highlights it and only Enter takes it, and a grid cell that opens for editing on Enter once it has been picked.
 
 **Type and press Enter** does in one step what Type and Press Enter do in two: it fills the field and commits the value, which is what a search box, a filter or a grid cell usually needs. One step also means the field is only found once, so nothing can move between typing and pressing Enter. Recording a value followed by Enter in the same field produces this step by itself. Pointed at a dropdown, Type and Type and press Enter choose the option whose text matches, the way typing into a dropdown that has the focus does in a browser; **Select** does the same on its own and says more clearly what the step is for. A dropdown drawn by the application rather than by the browser — AG Grid's own cell editor, or anything built from a list of `div`s — is not a field and cannot be typed into: click it open and click the option.
 
@@ -92,7 +94,7 @@ Clicks, double-clicks and right-clicks on [AG Grid](https://www.ag-grid.com/) ce
 
 ### Tree data (AG Grid Enterprise)
 
-- **Actions open folders, checks do not.** Click, Double-click, Right-click, Type, Type and press Enter, and Press Enter open collapsed folders on the path. A check (*Verify …*) leaves the grid as it is and fails with *“Report.pdf” is inside the collapsed folder “Documents”*, so a test notices when a folder that should be open is closed. Add an *Expand the row* step first if the check should open it.
+- **Actions open folders, checks do not.** Click, Click and press Enter, Double-click, Right-click, Type, Type and press Enter, and Press Enter open collapsed folders on the path. A check (*Verify …*) leaves the grid as it is and fails with *“Report.pdf” is inside the collapsed folder “Documents”*, so a test notices when a folder that should be open is closed. Add an *Expand the row* step first if the check should open it.
 - **Server-side tree data** (children loaded when a folder opens) is supported: loading rows are waited for, and a row is only reported as missing once they have loaded.
 - **Sticky folder rows** that stay at the top while scrolling are taken into account, so rows under them are scrolled clear before they are clicked.
 - **Custom tree cells:** the row name is read from AG Grid's group cell (`.ag-group-value`). If your application replaces the whole tree cell with its own renderer, paths still use the cell's text, but Expand, Collapse, Select and Deselect need AG Grid's own arrows and checkbox.

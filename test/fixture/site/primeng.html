@@ -30,6 +30,13 @@
   <!-- A field wrapped the way PrimeNG wraps one. -->
   <p-inputtext data-testid="email"><input id="email-inner" type="text" placeholder="Email"></p-inputtext>
 
+  <!-- A suggestion list: clicking an option highlights it, Enter takes it. Two steps meant the
+       list could close between them, so this is what Click and press Enter is for. -->
+  <ul id="suggestions" role="listbox">
+    <li role="option" data-testid="option-blue" tabindex="0">Blue</li>
+    <li role="option" data-testid="option-green" tabindex="0">Green</li>
+  </ul>
+
   <p-button data-testid="open-overlay"><button class="p-button" type="button">Open overlay</button></p-button>
 
   <!-- A host with no box of its own, holding a button that is on screen. -->
@@ -52,6 +59,18 @@
     document.getElementById('save-inner').addEventListener('click', () => { note.textContent = 'Saved'; });
     document.getElementById('floating-inner').addEventListener('click', () => { note.textContent = 'Floated'; });
     document.getElementById('dup-inner').addEventListener('click', () => { note.textContent = 'Twice clicked'; });
+
+    for (const opt of document.querySelectorAll('#suggestions [role=option]')) {
+      opt.addEventListener('click', () => {
+        for (const o of document.querySelectorAll('#suggestions [role=option]')) o.setAttribute('aria-selected', 'false');
+        opt.setAttribute('aria-selected', 'true');
+        opt.focus();
+      });
+      // Only Enter commits the highlighted option.
+      opt.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && opt.getAttribute('aria-selected') === 'true') note.textContent = 'Chose ' + opt.textContent;
+      });
+    }
 
     // Counts every submit, and survives the page being left, so a step that is sent more than once
     // can be seen afterwards.

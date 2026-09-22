@@ -42,7 +42,7 @@ function studioAct(loc, action, value, fieldAction) {
   // choice between several, and only for acting: reading text from a wrapper is still reading the
   // wrapper, which is what a step asking about it means.
   const controlSel = 'button,a[href],input,select,textarea,[role=button],[role=link],[contenteditable="true"],summary';
-  const ACTS_ON_CONTROL = ['Click', 'Double-click', 'Right-click', 'Type', 'Type and press Enter', 'Select', 'Press Enter', 'Verify field value', 'Verify element is enabled', 'Verify element is disabled'];
+  const ACTS_ON_CONTROL = ['Click', 'Click and press Enter', 'Double-click', 'Right-click', 'Type', 'Type and press Enter', 'Select', 'Press Enter', 'Verify field value', 'Verify element is enabled', 'Verify element is disabled'];
   const control = (el, action) => {
     if (!el || !ACTS_ON_CONTROL.includes(action) || el.matches(controlSel)) return el;
     let inner;
@@ -115,10 +115,12 @@ function studioAct(loc, action, value, fieldAction) {
 
   switch (action) {
     case 'Click':
+    case 'Click and press Enter':
     case 'Double-click':
     case 'Right-click': {
       // AG Grid and its popups react to real mouse events; everything else keeps a plain click.
-      const needsMouse = action !== 'Click' || !!el.closest('.ag-root-wrapper,.ag-popup,.ag-menu,.ag-popup-child');
+      const plainClick = action === 'Click' || action === 'Click and press Enter';
+      const needsMouse = !plainClick || !!el.closest('.ag-root-wrapper,.ag-popup,.ag-menu,.ag-popup-child');
       if (!needsMouse) { el.click(); break; }
       const r = el.getBoundingClientRect();
       const x = r.left + r.width / 2;
@@ -126,7 +128,7 @@ function studioAct(loc, action, value, fieldAction) {
       const hit = document.elementFromPoint(x, y);
       if (hit && (hit === el || el.contains(hit))) return { ok: true, used, mouse: { x, y } };
       // Something covers the element: fall back to a synthetic event.
-      if (action === 'Click') el.click();
+      if (plainClick) el.click();
       else el.dispatchEvent(new MouseEvent(action === 'Double-click' ? 'dblclick' : 'contextmenu', { bubbles: true, cancelable: true, clientX: x, clientY: y, button: action === 'Right-click' ? 2 : 0 }));
       break;
     }
@@ -308,7 +310,7 @@ function studioGrid(g, rowValue, action, value, scanId) {
     // reported as missing: wait for them instead.
     const loading = () => root.querySelector('.ag-row-loading, .ag-row .ag-loading, .ag-skeleton-container');
     // Checks do not change the grid, so only these actions open collapsed folders on a path.
-    const opensFolders = ['Click', 'Double-click', 'Right-click', 'Type', 'Type and press Enter', 'Press Enter'].includes(action);
+    const opensFolders = ['Click', 'Click and press Enter', 'Double-click', 'Right-click', 'Type', 'Type and press Enter', 'Press Enter'].includes(action);
     const rowSel = () => st.rowId != null ? '.ag-row[row-id="' + esc(st.rowId) + '"]' : '.ag-row[row-index="' + esc(st.rowIndex) + '"]';
     if (st.rowId == null && st.rowIndex == null || !root.querySelector(rowSel())) {
       // The row that was found has gone, so search the whole grid again.
@@ -708,7 +710,7 @@ async function gridStep(wc, step, ctx, value, vars, timeout) {
   }, timeout);
   if (!res.ok) throw new Error(res.reason || 'The grid step could not be completed.');
   if (res.mouse) await mouseAt(wc, res.mouse, step.action);
-  const entering = step.action === 'Press Enter' || step.action === 'Type and press Enter';
+  const entering = ['Press Enter', 'Type and press Enter', 'Click and press Enter'].includes(step.action);
   if (entering) pressEnter(wc);
   if (res.mouse || entering) await settle(wc, ctx.beforeCapture);
   return { used: 'grid' };
@@ -739,6 +741,7 @@ async function executeStep(wc, step, ctx) {
       return {};
     }
     case 'Click':
+    case 'Click and press Enter':
     case 'Double-click':
     case 'Right-click':
     case 'Type':
@@ -755,7 +758,7 @@ async function executeStep(wc, step, ctx) {
       const res = await tryUntil(() => act(wc, ctx, loc, step.action, value, !!meta.field), timeout);
       if (!res.ok) throw new Error(res.reason || 'The step could not be completed.');
       if (res.mouse) await mouseAt(wc, res.mouse, step.action);
-      if (step.action === 'Press Enter' || step.action === 'Type and press Enter') pressEnter(wc);
+      if (['Press Enter', 'Type and press Enter', 'Click and press Enter'].includes(step.action)) pressEnter(wc);
       if (!meta.verify) await settle(wc, ctx.beforeCapture);
       return { used: res.used, quality: loc.ast ? loc.quality : null };
     }

@@ -199,3 +199,24 @@ test('Type and press Enter is one step that types a value and commits it', () =>
   assert.ok(p.some((x) => x.where === 'T step 1' && /No value is set/.test(x.message)));
   assert.ok(!p.some((x) => x.where === 'T step 1' && /Unknown action/.test(x.message)));
 });
+
+test('Click and press Enter is one step that clicks a thing and commits it', () => {
+  assert.ok(ACTIONS.includes('Click and press Enter'));
+  // Like Click: it needs no value, and it can be pointed at a grid cell.
+  const meta = metaFor('Click and press Enter');
+  assert.deepEqual([meta.value, meta.grid, !!meta.field, !!meta.verify], [null, true, false, false]);
+
+  assert.equal(describeStep({ action: 'Click and press Enter', target: 'Blue' }), 'Click \u201cBlue\u201d, then press Enter');
+  assert.equal(
+    describeStep({ action: 'Click and press Enter', grid: { grid: { label: 'Orders' }, part: 'cell', column: { header: 'Status' }, row: { mode: 'match', match: 'equals', column: { header: 'Order ID' }, value: '1001' } } }),
+    'Click \u201cStatus\u201d in the Orders grid, row where Order ID is \u201c1001\u201d, then press Enter'
+  );
+
+  // It needs no value, so an empty one is not reported the way an empty Type is.
+  const p = validateSuite({ blocks: [], tests: [{ id: 'T', steps: [
+    { action: 'Click and press Enter', target: 'Blue' },
+    { action: 'Verify text appears', value: 'ok' }
+  ] }] }, []);
+  assert.deepEqual(p.filter((x) => x.where === 'T step 1' && x.level === 'error'), []);
+  assert.ok(!p.some((x) => x.where === 'T step 1' && /No value is set/.test(x.message)));
+});

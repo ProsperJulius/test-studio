@@ -9,6 +9,9 @@
   const ACTION_META = {
     'Open page': { target: true, value: 'https://… or /path' },
     Click: { target: true, value: null, grid: true },
+    // Clicking and committing in one step: a suggestion list where the click highlights an option
+    // and Enter takes it, or a grid cell that opens for editing on Enter after being picked.
+    'Click and press Enter': { target: true, value: null, grid: true },
     'Double-click': { target: true, value: null, grid: true },
     'Right-click': { target: true, value: null, grid: true },
     Type: { target: true, value: 'Value or {variable}', field: true, secretable: true, grid: true },
@@ -100,6 +103,7 @@
       }
       switch (step.action) {
         case 'Click': return 'Click ' + where;
+        case 'Click and press Enter': return 'Click ' + where + ', then press Enter';
         case 'Double-click': return 'Double-click ' + where;
         case 'Right-click': return 'Right-click ' + where;
         case 'Type': return 'Type “' + (shown || '…') + '” into ' + where;
@@ -117,6 +121,8 @@
         return 'Open ' + (step.target || 'page') + (step.value ? ' (' + step.value + ')' : '');
       case 'Click':
         return 'Click “' + target + '”';
+      case 'Click and press Enter':
+        return 'Click “' + target + '”, then press Enter';
       case 'Double-click':
         return 'Double-click “' + target + '”';
       case 'Right-click':

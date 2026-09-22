@@ -138,6 +138,48 @@
       "locators": null
     },
     {
+      "id": "s214",
+      "action": "Click",
+      "target": "Green",
+      "recordedTarget": "Green",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByTestId('option-green')"
+    },
+    {
+      "id": "s215",
+      "action": "Verify text is not shown",
+      "target": "",
+      "recordedTarget": "",
+      "value": "Chose Green",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
+      "id": "s216",
+      "action": "Click and press Enter",
+      "target": "Blue",
+      "recordedTarget": "Blue",
+      "value": "",
+      "secret": false,
+      "shot": false,
+      "locators": null,
+      "locator": "getByTestId('option-blue')"
+    },
+    {
+      "id": "s217",
+      "action": "Verify text appears",
+      "target": "",
+      "recordedTarget": "",
+      "value": "Chose Blue",
+      "secret": false,
+      "shot": false,
+      "locators": null
+    },
+    {
       "id": "s212",
       "action": "Click",
       "target": "Submit order",
